@@ -1,0 +1,164 @@
+package webui.stats.mc.web;
+
+import com.sun.net.httpserver.HttpExchange;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.LevelResource;
+import webui.stats.mc.McStatsWebui;
+import webui.stats.mc.WebConfig;
+import webui.stats.mc.stats.PlayerRecord;
+import webui.stats.mc.stats.StatsService;
+
+import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+public final class ApiHandler {
+	private final WebConfig config;
+
+	public ApiHandler(WebConfig config) {
+		this.config = config;
+	}
+
+	public void handle(HttpExchange exchange, MinecraftServer server) throws IOException {
+		String method = exchange.getRequestMethod();
+		if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+			HttpJson.error(exchange, 405, "method_not_allowed", "Use GET");
+			return;
+		}
+
+		String path = exchange.getRequestURI().getPath();
+		if (path.endsWith("/") && path.length() > 1) {
+			path = path.substring(0, path.length() - 1);
+		}
+
+		try {
+			WorldView world = onServerThread(server, this::worldView);
+			List<PlayerRecord> players = StatsService.load(world.world(), world.names());
+			switch (path) {
+				case "/api" -> HttpJson.send(exchange, 200, apiIndex());
+				case "/api/health" -> HttpJson.send(exchange, 200, health());
+				case "/api/status" -> HttpJson.send(exchange, 200, status(world, players));
+				case "/api/players" -> HttpJson.send(exchange, 200, StatsService.playersPayload(players));
+				case "/api/leaderboards" -> HttpJson.send(exchange, 200, StatsService.catalogPayload());
+				case "/api/crowns" -> HttpJson.send(exchange, 200, StatsService.crownsPayload(players));
+				default -> handleDynamic(exchange, path, players);
+			}
+		} catch (Exception e) {
+			McStatsWebui.LOGGER.error("API request failed", e);
+			HttpJson.error(exchange, 500, "internal_error", "Internal server error");
+		}
+	}
+
+	private void handleDynamic(HttpExchange exchange, String path, List<PlayerRecord> players) throws IOException {
+		if (path.startsWith("/api/players/")) {
+			String name = decode(path.substring("/api/players/".length()));
+			PlayerRecord player = StatsService.find(players, name);
+			if (player == null) {
+				HttpJson.error(exchange, 404, "not_found", "Player not found");
+				return;
+			}
+			HttpJson.send(exchange, 200, StatsService.playerPayload(player, players));
+			return;
+		}
+		if (path.startsWith("/api/leaderboards/")) {
+			String id = decode(path.substring("/api/leaderboards/".length()));
+			LeaderboardInfo info = StatsService.resolve(id);
+			if (info == null) {
+				HttpJson.error(exchange, 404, "not_found", "Unknown leaderboard");
+				return;
+			}
+			HttpJson.send(exchange, 200, StatsService.leaderboardPayload(info, players));
+			return;
+		}
+		HttpJson.error(exchange, 404, "not_found", "Unknown endpoint");
+	}
+
+	private Map<String, Object> apiIndex() {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("health", "/api/health");
+		body.put("status", "/api/status");
+		body.put("players", "/api/players");
+		body.put("leaderboards", "/api/leaderboards");
+		body.put("crowns", "/api/crowns");
+		return body;
+	}
+
+	private Map<String, Object> health() {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("ok", true);
+		body.put("mod", McStatsWebui.MOD_ID);
+		body.put("version", modVersion());
+		body.put("minecraft", minecraftVersion());
+		return body;
+	}
+
+	private Map<String, Object> status(WorldView world, List<PlayerRecord> players) {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("bind", config.bind());
+		body.put("trackedPlayers", players.size());
+		return body;
+	}
+
+	private WorldView worldView(MinecraftServer server) {
+		Map<UUID, String> names = new LinkedHashMap<>();
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			names.put(player.getGameProfile().id(), player.getGameProfile().name());
+		}
+		return new WorldView(resolveWorld(server), names);
+	}
+
+	private Path resolveWorld(MinecraftServer server) {
+		String folder = config.world();
+		if (folder.isEmpty()) {
+			return server.getWorldPath(LevelResource.ROOT);
+		}
+		return FabricLoader.getInstance().getGameDir().resolve(folder);
+	}
+
+	private <T> T onServerThread(MinecraftServer server, ServerRead<T> read) throws Exception {
+		CompletableFuture<T> future = new CompletableFuture<>();
+		server.execute(() -> {
+			try {
+				future.complete(read.apply(server));
+			} catch (Exception e) {
+				future.completeExceptionally(e);
+			}
+		});
+		return future.get(3, TimeUnit.SECONDS);
+	}
+
+	private static String decode(String value) {
+		return URLDecoder.decode(value, StandardCharsets.UTF_8);
+	}
+
+	private static String modVersion() {
+		return FabricLoader.getInstance()
+			.getModContainer(McStatsWebui.MOD_ID)
+			.map(container -> container.getMetadata().getVersion().getFriendlyString())
+			.orElse("unknown");
+	}
+
+	private static String minecraftVersion() {
+		return FabricLoader.getInstance()
+			.getModContainer("minecraft")
+			.map(container -> container.getMetadata().getVersion().getFriendlyString())
+			.orElse("unknown");
+	}
+
+	private record WorldView(Path world, Map<UUID, String> names) {
+	}
+
+	@FunctionalInterface
+	private interface ServerRead<T> {
+		T apply(MinecraftServer server);
+	}
+}

@@ -1,0 +1,178 @@
+@font-face {
+	font-family: 'Minecraft';
+	src: url('../assets/fonts/Minecraft.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root,
+html[data-theme='dark'] {
+	--font-ui: 'Minecraft', 'Courier New', monospace;
+	--color-bg: #1b120c;
+	--color-fg: #ffffff;
+	--color-muted: #a0a0a0;
+	--color-text: #e0e0e0;
+	--color-accent: #55ff55;
+	--color-gold: #ffff55;
+	--color-hover: #ffffa0;
+	--color-border: #000000;
+	--color-card: #00000099;
+	--color-shadow: #3f3f3f;
+	--color-overlay: #0000008f;
+	--dirt-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'%3E%3Cpath fill='%235c3d24' d='M0 0h8v8H0z'/%3E%3Cpath fill='%234a301b' d='M0 0h4v4H0zm4 4h4v4H4z'/%3E%3Cpath fill='%236b4a2e' d='M4 0h2v2H4zm0 6h4v2H4zM0 4h2v2H0z'/%3E%3Cpath fill='%233a2414' d='M6 2h2v2H6zM2 6h2v2H2z'/%3E%3C/svg%3E");
+	--button-face: #6f6f6f;
+	--button-face-hover: #757575;
+	--button-highlight: #aaaaaa;
+	--button-highlight-hover: #afafaf;
+	--button-shadow: #565656;
+	--button-shadow-hover: #5c5c5c;
+	--button-border: #000000;
+	--button-border-hover: #ffffff;
+	--slot-bg: #00000080;
+	--slot-hover: #ffffff14;
+	--color-plate: #22180f;
+	--color-plate-gold: #6e5a18;
+	--color-plate-silver: #4a4a54;
+	--color-plate-bronze: #5c3514;
+	--color-silver: #c6c6c6;
+	--color-bronze: #d4893a;
+	--text-shadow: 2px 2px 0 var(--color-shadow);
+	color-scheme: dark;
+}
+
+html[data-theme='light'] {
+	--color-bg: #c4a36a;
+	--color-fg: #3f3f3f;
+	--color-muted: #6b5428;
+	--color-text: #3f2a14;
+	--color-accent: #2d6a1e;
+	--color-gold: #aa7f00;
+	--color-hover: #5a3c00;
+	--color-border: #3f2a14;
+	--color-card: #f0e2b8d9;
+	--color-shadow: #e8d9b0;
+	--color-overlay: #e8d4a38a;
+	--dirt-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'%3E%3Cpath fill='%23d4b57a' d='M0 0h8v8H0z'/%3E%3Cpath fill='%23c4a36a' d='M0 0h4v4H0zm4 4h4v4H4z'/%3E%3Cpath fill='%23e0c58a' d='M4 0h2v2H4zm0 6h4v2H4zM0 4h2v2H0z'/%3E%3Cpath fill='%23b8935c' d='M6 2h2v2H6zM2 6h2v2H2z'/%3E%3C/svg%3E");
+	--button-face: #6f6f6f;
+	--button-face-hover: #757575;
+	--button-highlight: #aaaaaa;
+	--button-highlight-hover: #afafaf;
+	--button-shadow: #565656;
+	--button-shadow-hover: #5c5c5c;
+	--button-border: #000000;
+	--button-border-hover: #ffffff;
+	--slot-bg: #c4a36acc;
+	--slot-hover: #ffffff55;
+	--color-plate: #efe3b6;
+	--color-plate-gold: #f1d56a;
+	--color-plate-silver: #d8d8e2;
+	--color-plate-bronze: #e8b87a;
+	--color-silver: #5c5c68;
+	--color-bronze: #8a4e16;
+	--text-shadow: 2px 2px 0 var(--color-shadow);
+	color-scheme: light;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	color: var(--color-fg);
+	font-family: var(--font-ui);
+	font-size: 16px;
+	line-height: 1.4;
+	text-shadow: var(--text-shadow);
+	-webkit-font-smoothing: none;
+	font-smooth: never;
+}
+
+body {
+	background: var(--color-bg);
+}
+
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background-color: var(--color-bg);
+	background-image: linear-gradient(var(--color-overlay), var(--color-overlay)), var(--dirt-image);
+	background-size: auto, 64px 64px;
+	background-repeat: repeat;
+	image-rendering: pixelated;
+	pointer-events: none;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+	font-weight: 400;
+	text-shadow: var(--text-shadow);
+}
+
+button,
+select,
+.mc-btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.45rem;
+	min-height: 2.5rem;
+	padding: 0.35rem 0.8rem;
+	color: #ffffff;
+	font: inherit;
+	text-align: center;
+	text-shadow: 2px 2px 0 #3f3f3f;
+	background: var(--button-face);
+	border: 2px solid var(--button-border);
+	border-radius: 0;
+	box-shadow: inset 2px 2px 0 var(--button-highlight), inset -2px -2px 0 var(--button-shadow);
+	outline: none;
+	cursor: pointer;
+}
+
+button:hover,
+button:focus-visible,
+select:hover,
+select:focus-visible,
+.mc-btn:hover,
+.mc-btn:focus-visible {
+	color: #ffffa0;
+	background: var(--button-face-hover);
+	border-color: var(--button-border-hover);
+	box-shadow: inset 2px 2px 0 var(--button-highlight-hover), inset -2px -2px 0 var(--button-shadow-hover);
+}
+
+.panel {
+	background: var(--color-card);
+	border: 2px solid var(--color-border);
+	border-radius: 0;
+	box-shadow: inset 0 0 0 2px var(--button-shadow);
+}
+
+.slot {
+	background: var(--slot-bg);
+	border: 2px solid var(--color-border);
+	border-radius: 0;
+}
+
+.slot:hover {
+	background: var(--slot-hover);
+	color: var(--color-hover);
+}
+
+code {
+	color: var(--color-gold);
+	font-family: var(--font-ui);
+}
