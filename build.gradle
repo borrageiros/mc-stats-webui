@@ -52,16 +52,17 @@ tasks.register('yarnInstall', Exec) {
 }
 
 tasks.register('extractMcTextures', Exec) {
-	dependsOn 'configureClientLaunch'
-	def clientJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${project.minecraft_version}/minecraft-client.jar")
-	inputs.file clientJar
+	def version = project.minecraft_version as String
+	inputs.property 'minecraft_version', version
 	inputs.file file('scripts/extract_mc_textures.py')
 	outputs.dir file('web/static/mc')
 	outputs.file file('web/src/lib/mc/icons.json')
+	environment 'MC_VERSION', version
+	environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 	if (isWindows) {
-		commandLine 'cmd', '/c', 'python', 'scripts/extract_mc_textures.py'
+		commandLine 'cmd', '/c', 'python', 'scripts/extract_mc_textures.py', '--version', version
 	} else {
-		commandLine 'python3', 'scripts/extract_mc_textures.py'
+		commandLine 'python3', 'scripts/extract_mc_textures.py', '--version', version
 	}
 }
 

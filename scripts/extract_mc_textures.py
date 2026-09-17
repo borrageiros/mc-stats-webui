@@ -1,13 +1,55 @@
+import argparse
 import json
+import os
 import shutil
+import urllib.request
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "26.2"
-JAR = Path.home() / ".gradle" / "caches" / "fabric-loom" / VERSION / "minecraft-client.jar"
 STATIC = ROOT / "web" / "static" / "mc"
 ICONS = ROOT / "web" / "src" / "lib" / "mc" / "icons.json"
+MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+
+
+def gradle_home() -> Path:
+	env = os.environ.get("GRADLE_USER_HOME")
+	if env:
+		return Path(env)
+	return Path.home() / ".gradle"
+
+
+def default_jar(version: str) -> Path:
+	return gradle_home() / "caches" / "fabric-loom" / version / "minecraft-client.jar"
+
+
+def download_client_jar(version: str, dest: Path) -> None:
+	print(f"Downloading Minecraft {version} client jar…")
+	with urllib.request.urlopen(MANIFEST_URL) as response:
+		manifest = json.load(response)
+	entry = next((item for item in manifest["versions"] if item["id"] == version), None)
+	if not entry:
+		raise SystemExit(f"Minecraft version not found in manifest: {version}")
+	with urllib.request.urlopen(entry["url"]) as response:
+		meta = json.load(response)
+	client = meta.get("downloads", {}).get("client")
+	if not client or "url" not in client:
+		raise SystemExit(f"No client download for Minecraft {version}")
+	dest.parent.mkdir(parents=True, exist_ok=True)
+	tmp = dest.with_suffix(".jar.tmp")
+	urllib.request.urlretrieve(client["url"], tmp)
+	tmp.replace(dest)
+	print(f"Saved {dest}")
+
+
+def resolve_jar(version: str, jar_arg: str | None) -> Path:
+	jar = Path(jar_arg) if jar_arg else default_jar(version)
+	if jar.is_file():
+		return jar
+	download_client_jar(version, jar)
+	if not jar.is_file():
+		raise SystemExit(f"Missing Minecraft client jar: {jar}")
+	return jar
 
 
 def tex_url(tex: str) -> str | None:
@@ -222,9 +264,12 @@ def file_exists(url: str) -> bool:
 
 
 def main() -> None:
-	if not JAR.is_file():
-		raise SystemExit(f"Missing Minecraft client jar: {JAR}")
-	with zipfile.ZipFile(JAR) as jar:
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--version", default=os.environ.get("MC_VERSION", "26.3"))
+	parser.add_argument("--jar")
+	args = parser.parse_args()
+	jar_path = resolve_jar(args.version, args.jar)
+	with zipfile.ZipFile(jar_path) as jar:
 		copy_pngs(jar)
 		icons: dict[str, str] = {}
 		for entry in jar.namelist():
