@@ -23,6 +23,12 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: enable corepack
+        run: corepack enable
+      - name: cache yarn
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
           cache: yarn
           cache-dependency-path: web/yarn.lock
       - name: make gradle wrapper executable
