@@ -52,6 +52,7 @@ tasks.register('yarnInstall', Exec) {
 }
 
 tasks.register('extractMcTextures', Exec) {
+	dependsOn 'configureClientLaunch'
 	def clientJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${project.minecraft_version}/minecraft-client.jar")
 	inputs.file clientJar
 	inputs.file file('scripts/extract_mc_textures.py')
