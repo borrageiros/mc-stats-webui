@@ -4,7 +4,9 @@
 
 A **Fabric server mod** that embeds a small web UI + API. Players open it in a browser — no client mod needed.
 
-![Ranking home screenshot](screenshot.png)
+![Ranking home screenshot](screenshots/screenshot.png)
+
+## [MORE SCREENSHOTS](screenshots/README.md)
 
 ## ✨ Features
 
