@@ -235,7 +235,7 @@ export const es = {
 	'leaderboard.raids-won': 'Raids ganadas',
 	'leaderboard.player-kills': 'Jugadores matados',
 	'leaderboard.damage-dealt': 'Daño melee',
-	'leaderboard.deaths': 'Muertes',
+	'leaderboard.deaths': 'Muertes totales',
 	'leaderboard.kills-per-hour': 'Kills por hora',
 	'leaderboard.blocks-mined': 'Bloques picados',
 	'leaderboard.ores': 'Ores',

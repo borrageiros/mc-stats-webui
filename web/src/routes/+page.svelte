@@ -6,6 +6,7 @@
 	import RankingScore from '$lib/components/RankingScore.svelte';
 	import SearchField from '$lib/components/SearchField.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
+	import { branding } from '$lib/branding.svelte';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import type { LeaderboardResponse } from '$lib/types';
 
@@ -72,7 +73,7 @@
 		{#if ranking && ranking.entries.length > 0}
 			<HomePodium entries={ranking.entries} coin={selected === 'champion'} hint={hint} />
 		{/if}
-		<div class="tabs" role="tablist" aria-label={t('home.headline')}>
+		<div class="tabs" role="tablist" aria-label={branding.title}>
 			{#each rankingIds as id}
 				<button
 					type="button"

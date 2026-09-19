@@ -52,7 +52,6 @@ export const statGroups: StatGroup[] = [
 			{ id: 'raids-won', icon: 'minecraft:crossbow' },
 			{ id: 'player-kills', icon: 'minecraft:player_head' },
 			{ id: 'damage-dealt', icon: 'minecraft:diamond_sword' },
-			{ id: 'deaths', icon: 'minecraft:bone', lowerWins: true },
 			{ id: 'kills-per-hour', icon: 'minecraft:clock' }
 		]
 	},
@@ -106,6 +105,7 @@ export const statGroups: StatGroup[] = [
 		category: 'deaths',
 		icon: 'minecraft:bone',
 		stats: [
+			{ id: 'deaths', icon: 'minecraft:bone', lowerWins: true },
 			{ id: 'killed-by-zombie', icon: 'minecraft:zombie_head', lowerWins: true },
 			{ id: 'killed-by-creeper', icon: 'minecraft:creeper_head', lowerWins: true },
 			{ id: 'killed-by-skeleton', icon: 'minecraft:skeleton_skull', lowerWins: true },

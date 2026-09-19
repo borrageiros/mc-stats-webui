@@ -10,6 +10,7 @@
 	import { getPlayerProfile } from '$lib/api';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import { gradeItems, gradeOrder, statGroups } from '$lib/playerStats';
+	import { cappedResults, deferredValue } from '$lib/search.svelte';
 	import type { PlayerDetail } from '$lib/types';
 	import {
 		hideZerosByDefault,
@@ -27,8 +28,9 @@
 	let query = $state('');
 	let hideZeros = $state({ ...hideZerosByDefault });
 	let openGroups = $state(closedGroups());
+	const filterQuery = deferredValue(() => query);
 
-	const searching = $derived(query.trim().length > 0);
+	const searching = $derived(filterQuery.current.trim().length > 0);
 
 	function closedGroups(): Record<VanillaGroup, boolean> {
 		return {
@@ -164,7 +166,8 @@
 		</div>
 		{#each vanillaGroups as group (group + i18n.locale)}
 			{@const rows = player.vanilla[group] ?? []}
-			{@const shown = visibleVanilla(group, rows, query, hideZeros[group])}
+			{@const matched = visibleVanilla(group, rows, filterQuery.current, hideZeros[group])}
+			{@const shown = cappedResults(matched, searching)}
 			<section class="pack">
 				<div class="pack-head">
 					<button
@@ -185,7 +188,7 @@
 					</label>
 				</div>
 				{#if isOpen(group)}
-					{#if shown.length === 0}
+					{#if matched.length === 0}
 						<p class="muted">{t('player.noMatches')}</p>
 					{:else}
 						<div class="tiles">

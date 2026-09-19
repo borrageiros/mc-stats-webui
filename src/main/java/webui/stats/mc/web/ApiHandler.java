@@ -8,6 +8,7 @@ import net.minecraft.world.level.storage.LevelResource;
 import webui.stats.mc.McStatsWebui;
 import webui.stats.mc.WebConfig;
 import webui.stats.mc.stats.PlayerRecord;
+import webui.stats.mc.stats.StatsCache;
 import webui.stats.mc.stats.StatsService;
 
 import java.io.IOException;
@@ -41,12 +42,11 @@ public final class ApiHandler {
 		}
 
 		try {
-			WorldView world = onServerThread(server, this::worldView);
-			List<PlayerRecord> players = StatsService.load(world.world(), world.names());
+			List<PlayerRecord> players = onServerThread(server, StatsCache.get()::snapshot);
 			switch (path) {
 				case "/api" -> HttpJson.send(exchange, 200, apiIndex());
 				case "/api/health" -> HttpJson.send(exchange, 200, health());
-				case "/api/status" -> HttpJson.send(exchange, 200, status(world, players));
+				case "/api/status" -> HttpJson.send(exchange, 200, status(players));
 				case "/api/players" -> HttpJson.send(exchange, 200, StatsService.playersPayload(players));
 				case "/api/leaderboards" -> HttpJson.send(exchange, 200, StatsService.catalogPayload());
 				case "/api/crowns" -> HttpJson.send(exchange, 200, StatsService.crownsPayload(players));
@@ -101,27 +101,28 @@ public final class ApiHandler {
 		return body;
 	}
 
-	private Map<String, Object> status(WorldView world, List<PlayerRecord> players) {
+	private Map<String, Object> status(List<PlayerRecord> players) {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("bind", config.bind());
 		body.put("trackedPlayers", players.size());
+		body.put("branding", config.brandingPayload());
 		return body;
 	}
 
-	private WorldView worldView(MinecraftServer server) {
-		Map<UUID, String> names = new LinkedHashMap<>();
-		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			names.put(player.getGameProfile().id(), player.getGameProfile().name());
-		}
-		return new WorldView(resolveWorld(server), names);
-	}
-
-	private Path resolveWorld(MinecraftServer server) {
+	public Path resolveWorld(MinecraftServer server) {
 		String folder = config.world();
 		if (folder.isEmpty()) {
 			return server.getWorldPath(LevelResource.ROOT);
 		}
 		return FabricLoader.getInstance().getGameDir().resolve(folder);
+	}
+
+	public Map<UUID, String> onlineNames(MinecraftServer server) {
+		Map<UUID, String> names = new LinkedHashMap<>();
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			names.put(player.getGameProfile().id(), player.getGameProfile().name());
+		}
+		return names;
 	}
 
 	private <T> T onServerThread(MinecraftServer server, ServerRead<T> read) throws Exception {
@@ -133,7 +134,7 @@ public final class ApiHandler {
 				future.completeExceptionally(e);
 			}
 		});
-		return future.get(3, TimeUnit.SECONDS);
+		return future.get(5, TimeUnit.SECONDS);
 	}
 
 	private static String decode(String value) {
@@ -152,9 +153,6 @@ public final class ApiHandler {
 			.getModContainer("minecraft")
 			.map(container -> container.getMetadata().getVersion().getFriendlyString())
 			.orElse("unknown");
-	}
-
-	private record WorldView(Path world, Map<UUID, String> names) {
 	}
 
 	@FunctionalInterface

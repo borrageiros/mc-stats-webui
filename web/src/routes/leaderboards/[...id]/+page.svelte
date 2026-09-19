@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import BackNav from '$lib/components/BackNav.svelte';
+	import HomePodium from '$lib/components/HomePodium.svelte';
 	import Loader from '$lib/components/Loader.svelte';
 	import McItem from '$lib/components/McItem.svelte';
 	import PlayerSkin from '$lib/components/PlayerSkin.svelte';
@@ -117,6 +118,7 @@
 {:else if !board || board.entries.length === 0}
 	<p class="empty">{t('leaderboard.empty')}</p>
 {:else}
+	<HomePodium entries={board.entries} coin={board.id === 'champion'} hint={hint} />
 	<div class="filters">
 		<SearchField bind:value={query} placeholder={t('home.search')} />
 	</div>

@@ -2,6 +2,7 @@
 	import fallbackFavicon from '$lib/assets/favicon.svg';
 	import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
 	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
+	import { branding, loadBranding } from '$lib/branding.svelte';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import '$lib/theme/theme.css';
 	import '$lib/theme/theme.svelte';
@@ -10,6 +11,10 @@
 	let { children } = $props();
 
 	let faviconHref = $state('/server-icon.png');
+
+	$effect(() => {
+		loadBranding();
+	});
 
 	$effect(() => {
 		const image = new Image();
@@ -38,8 +43,8 @@
 
 <svelte:head>
 	<link rel="icon" href={faviconHref} />
-	<title>{t('title.site')}</title>
-	<meta name="description" content={t('meta.description')} />
+	<title>{branding.title}</title>
+	<meta name="description" content={branding.slogan} />
 </svelte:head>
 
 <div class="shell">
@@ -47,10 +52,10 @@
 		{#if home}
 			<section class="hero">
 				<div class="title">
-					<h1>{t('home.headline')}</h1>
-					<p class="splash">{t('home.kicker')}</p>
+					<h1>{branding.title}</h1>
+					<p class="splash">{branding.tagline}</p>
 				</div>
-				<p class="lead">{t('home.lead')}</p>
+				<p class="lead">{branding.slogan}</p>
 			</section>
 		{/if}
 		<nav class="menu">

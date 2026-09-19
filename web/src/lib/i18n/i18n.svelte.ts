@@ -2,6 +2,7 @@ import { en } from './messages/en';
 import { es, type MessageKey } from './messages/es';
 import { fr } from './messages/fr';
 import { STORAGE_KEY, isLocale, type Locale } from './locales';
+import { formatWindowTitle } from '$lib/branding.svelte';
 
 const dictionaries: Record<Locale, Record<MessageKey, string>> = { es, en, fr };
 
@@ -92,7 +93,7 @@ export function boardHint(id: string, unit?: string): string {
 }
 
 export function pageTitle(page: string): string {
-	return t('title.page', { page, site: t('title.site') });
+	return formatWindowTitle(page);
 }
 
 export { locales, type Locale } from './locales';

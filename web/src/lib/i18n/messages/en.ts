@@ -236,7 +236,7 @@ export const en: Record<MessageKey, string> = {
 	'leaderboard.raids-won': 'Raids won',
 	'leaderboard.player-kills': 'Player kills',
 	'leaderboard.damage-dealt': 'Melee damage',
-	'leaderboard.deaths': 'Deaths',
+	'leaderboard.deaths': 'Total deaths',
 	'leaderboard.kills-per-hour': 'Kills per hour',
 	'leaderboard.blocks-mined': 'Blocks mined',
 	'leaderboard.ores': 'Ores',

@@ -46,6 +46,12 @@ export type HealthResponse = {
 export type StatusResponse = {
 	bind: string;
 	trackedPlayers: number;
+	branding?: {
+		title: string;
+		slogan: string;
+		tagline: string;
+		windowTitle: string;
+	};
 };
 
 export type LeaderboardInfo = {

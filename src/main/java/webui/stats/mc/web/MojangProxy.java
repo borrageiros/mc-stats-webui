@@ -40,7 +40,11 @@ public final class MojangProxy {
 			HttpResponse<byte[]> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
 			String contentType = response.headers().firstValue("Content-Type").orElse("application/octet-stream");
 			exchange.getResponseHeaders().set("Content-Type", contentType);
-			exchange.getResponseHeaders().set("Cache-Control", "public, max-age=300");
+			boolean texture = target.getHost().contains("textures.minecraft.net");
+			exchange.getResponseHeaders().set(
+				"Cache-Control",
+				texture ? "public, max-age=86400, immutable" : "public, max-age=300"
+			);
 			boolean head = "HEAD".equalsIgnoreCase(method);
 			byte[] body = response.body() == null ? new byte[0] : response.body();
 			exchange.sendResponseHeaders(response.statusCode(), head ? -1 : body.length);

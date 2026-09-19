@@ -25,7 +25,8 @@ type TexturePayload = {
 };
 
 const SESSION_ORIGIN = 'https://sessionserver.mojang.com';
-const cache = new Map<string, Promise<PlayerTextures>>();
+const profileCache = new Map<string, Promise<PlayerTextures>>();
+const imageCache = new Map<string, Promise<string>>();
 
 export function formatUuid(uuid: string): string {
 	const hex = uuid.replaceAll('-', '').toLowerCase();
@@ -52,14 +53,34 @@ export function viaMojangProxy(url: string): string {
 
 export function getPlayerTextures(uuid: string): Promise<PlayerTextures> {
 	const id = formatUuid(uuid);
-	const cached = cache.get(id);
+	const cached = profileCache.get(id);
 	if (cached) {
 		return cached;
 	}
 	const pending = loadTextures(id);
-	cache.set(id, pending);
+	profileCache.set(id, pending);
 	pending.catch(() => {
-		cache.delete(id);
+		profileCache.delete(id);
+	});
+	return pending;
+}
+
+async function cachedImageUrl(url: string): Promise<string> {
+	const cached = imageCache.get(url);
+	if (cached) {
+		return cached;
+	}
+	const pending = (async () => {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`${response.status} ${response.statusText}`);
+		}
+		const blob = await response.blob();
+		return URL.createObjectURL(blob);
+	})();
+	imageCache.set(url, pending);
+	pending.catch(() => {
+		imageCache.delete(url);
 	});
 	return pending;
 }
@@ -79,11 +100,17 @@ async function loadTextures(uuid: string): Promise<PlayerTextures> {
 	if (!skin?.url) {
 		throw new Error('Missing skin');
 	}
+	const skinProxy = viaMojangProxy(skin.url);
+	const capeProxy = payload.textures?.CAPE?.url ? viaMojangProxy(payload.textures.CAPE.url) : null;
+	const [skinUrl, capeUrl] = await Promise.all([
+		cachedImageUrl(skinProxy),
+		capeProxy ? cachedImageUrl(capeProxy) : Promise.resolve(null)
+	]);
 	return {
 		name: profile.name,
 		uuid,
 		slim: skin.metadata?.model === 'slim',
-		skinUrl: viaMojangProxy(skin.url),
-		capeUrl: payload.textures?.CAPE?.url ? viaMojangProxy(payload.textures.CAPE.url) : null
+		skinUrl,
+		capeUrl
 	};
 }

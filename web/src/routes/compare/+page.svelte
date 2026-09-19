@@ -11,6 +11,7 @@
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import { compareStats, gradeItems, gradeOrder, statGroups } from '$lib/playerStats';
+	import { cappedResults, deferredValue } from '$lib/search.svelte';
 	import type { PlayerDetail, PlayerSummary } from '$lib/types';
 	import {
 		vanillaBoardHref,
@@ -53,6 +54,7 @@
 	let leftLoading = $state(false);
 	let rightLoading = $state(false);
 	let query = $state('');
+	const filterQuery = deferredValue(() => query);
 	let openVanilla = $state<Record<VanillaGroup, boolean>>({
 		custom: false,
 		killed: false,
@@ -200,7 +202,7 @@
 	const leftChoices = $derived(players.filter((player) => player.name !== right));
 	const rightChoices = $derived(players.filter((player) => player.name !== left));
 	const ready = $derived(Boolean(leftProfile && rightProfile && left !== right));
-	const searching = $derived(query.trim().length > 0);
+	const searching = $derived(filterQuery.current.trim().length > 0);
 
 	const overviewRows = $derived.by((): DuelRow[] => {
 		void i18n.locale;
@@ -364,16 +366,16 @@
 		});
 	});
 
-	const shownOverview = $derived.by(() => filterRows(overviewRows, query.trim().toLowerCase()));
+	const shownOverview = $derived.by(() => filterRows(overviewRows, filterQuery.current.trim().toLowerCase()));
 	const shownGrades = $derived.by(() => {
-		const needle = query.trim().toLowerCase();
+		const needle = filterQuery.current.trim().toLowerCase();
 		if (needle && matchesNeedle(t('player.grades'), needle)) {
 			return gradeRows;
 		}
 		return filterRows(gradeRows, needle);
 	});
 	const shownStatSections = $derived.by(() => {
-		const needle = query.trim().toLowerCase();
+		const needle = filterQuery.current.trim().toLowerCase();
 		if (!needle) {
 			return statSections;
 		}
@@ -388,14 +390,19 @@
 			.filter((section) => section.rows.length > 0);
 	});
 	const shownVanilla = $derived.by(() => {
-		const needle = query.trim().toLowerCase();
+		const needle = filterQuery.current.trim().toLowerCase();
 		return vanillaSections
-			.map((section) => ({
-				...section,
-				total: section.rows.length,
-				rows: !needle || matchesNeedle(section.title, needle) ? section.rows : filterRows(section.rows, needle)
-			}))
-			.filter((section) => section.rows.length > 0);
+			.map((section) => {
+				const matched =
+					!needle || matchesNeedle(section.title, needle) ? section.rows : filterRows(section.rows, needle);
+				return {
+					...section,
+					total: section.rows.length,
+					matched: matched.length,
+					rows: cappedResults(matched, searching)
+				};
+			})
+			.filter((section) => section.matched > 0);
 	});
 	const hasMatches = $derived(
 		shownOverview.length > 0 ||

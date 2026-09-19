@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Loader from '$lib/components/Loader.svelte';
 	import { itemLetter, itemTextureUrls } from '$lib/mc/items';
 
 	let { id, compact = false }: { id: string; compact?: boolean } = $props();
@@ -27,9 +26,6 @@
 
 <span class="frame" class:compact>
 	{#if src}
-		{#if !ready}
-			<Loader embed />
-		{/if}
 		<img
 			bind:this={imgEl}
 			class="icon"
@@ -39,6 +35,8 @@
 			alt=""
 			width="32"
 			height="32"
+			decoding="async"
+			loading="lazy"
 			onload={() => {
 				ready = true;
 			}}

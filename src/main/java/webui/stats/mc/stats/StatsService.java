@@ -3,6 +3,8 @@ package webui.stats.mc.stats;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import webui.stats.mc.McStatsWebui;
 import webui.stats.mc.web.LeaderboardCatalog;
 import webui.stats.mc.web.LeaderboardInfo;
@@ -29,12 +31,7 @@ public final class StatsService {
 	}
 
 	public static List<PlayerRecord> load(Path worldRoot, Map<UUID, String> knownNames) {
-		NameDirectory names = new NameDirectory();
-		names.loadLocal(FabricLoader.getInstance().getGameDir());
-		for (Map.Entry<UUID, String> entry : knownNames.entrySet()) {
-			names.put(entry.getKey(), entry.getValue());
-		}
-
+		NameDirectory names = nameDirectory(knownNames);
 		Path directory = statsDirectory(worldRoot);
 		List<Path> files = new ArrayList<>();
 		if (directory != null && Files.isDirectory(directory)) {
@@ -50,20 +47,16 @@ public final class StatsService {
 		Set<UUID> uuids = new HashSet<>();
 		Map<UUID, StatFile> parsed = new HashMap<>();
 		for (Path path : files) {
-			String filename = path.getFileName().toString();
-			if (!filename.endsWith(".json")) {
+			UUID uuid = uuidFromStatsFile(path);
+			if (uuid == null) {
 				continue;
 			}
-			try {
-				UUID uuid = UUID.fromString(filename.substring(0, filename.length() - 5));
-				uuids.add(uuid);
-				try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-					JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-					parsed.put(uuid, new StatFile(root));
-				}
-			} catch (Exception e) {
-				McStatsWebui.LOGGER.warn("Could not read stats file {}", path.getFileName(), e);
+			StatFile stats = readStatsFile(path);
+			if (stats == null) {
+				continue;
 			}
+			uuids.add(uuid);
+			parsed.put(uuid, stats);
 		}
 		names.resolveMissing(uuids);
 
@@ -72,8 +65,79 @@ public final class StatsService {
 			UUID uuid = entry.getKey();
 			players.add(PlayerMetrics.compute(uuid, names.get(uuid), entry.getValue()));
 		}
-		players = ChampionScorer.apply(players);
-		return players;
+		return ChampionScorer.apply(players);
+	}
+
+	public static PlayerRecord loadOne(Path worldRoot, UUID uuid, Map<UUID, String> knownNames) {
+		Path path = statsFile(worldRoot, uuid);
+		if (path == null || !Files.isRegularFile(path)) {
+			return null;
+		}
+		StatFile stats = readStatsFile(path);
+		if (stats == null) {
+			return null;
+		}
+		NameDirectory names = nameDirectory(knownNames);
+		names.resolveMissing(Set.of(uuid));
+		return PlayerMetrics.compute(uuid, names.get(uuid), stats);
+	}
+
+	public static Path statsDirectory(Path worldRoot) {
+		if (worldRoot == null) {
+			return null;
+		}
+		List<Path> candidates = new ArrayList<>();
+		candidates.add(worldRoot.resolve("players").resolve("stats"));
+		candidates.add(worldRoot.resolve("stats"));
+		for (Path path : candidates) {
+			if (Files.isDirectory(path)) {
+				return path;
+			}
+		}
+		return candidates.getFirst();
+	}
+
+	public static Path statsDirectory(MinecraftServer server) {
+		return statsDirectory(server.getWorldPath(LevelResource.ROOT));
+	}
+
+	private static NameDirectory nameDirectory(Map<UUID, String> knownNames) {
+		NameDirectory names = new NameDirectory();
+		names.loadLocal(FabricLoader.getInstance().getGameDir());
+		for (Map.Entry<UUID, String> entry : knownNames.entrySet()) {
+			names.put(entry.getKey(), entry.getValue());
+		}
+		return names;
+	}
+
+	private static Path statsFile(Path worldRoot, UUID uuid) {
+		Path directory = statsDirectory(worldRoot);
+		if (directory == null) {
+			return null;
+		}
+		return directory.resolve(uuid + ".json");
+	}
+
+	private static UUID uuidFromStatsFile(Path path) {
+		String filename = path.getFileName().toString();
+		if (!filename.endsWith(".json")) {
+			return null;
+		}
+		try {
+			return UUID.fromString(filename.substring(0, filename.length() - 5));
+		} catch (IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	private static StatFile readStatsFile(Path path) {
+		try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+			JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+			return new StatFile(root);
+		} catch (Exception e) {
+			McStatsWebui.LOGGER.warn("Could not read stats file {}", path.getFileName(), e);
+			return null;
+		}
 	}
 
 	public static Map<String, Object> playersPayload(List<PlayerRecord> players) {
@@ -339,20 +403,5 @@ public final class StatsService {
 
 	private static double round(double value) {
 		return Math.round(value * 100.0) / 100.0;
-	}
-
-	private static Path statsDirectory(Path worldRoot) {
-		if (worldRoot == null) {
-			return null;
-		}
-		List<Path> candidates = new ArrayList<>();
-		candidates.add(worldRoot.resolve("players").resolve("stats"));
-		candidates.add(worldRoot.resolve("stats"));
-		for (Path path : candidates) {
-			if (Files.isDirectory(path)) {
-				return path;
-			}
-		}
-		return candidates.getFirst();
 	}
 }

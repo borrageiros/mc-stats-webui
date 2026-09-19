@@ -2,9 +2,11 @@ package webui.stats.mc;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import webui.stats.mc.stats.StatsCache;
 import webui.stats.mc.web.StatsHttpServer;
 
 import java.io.IOException;
@@ -23,6 +25,11 @@ public class McStatsWebui implements ModInitializer {
 			}
 		});
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> StatsHttpServer.getInstance().stop());
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+			if (server.getTickCount() % 300 == 0) {
+				StatsCache.get().flushDirty(server);
+			}
+		});
 	}
 
 	public static Identifier id(String path) {

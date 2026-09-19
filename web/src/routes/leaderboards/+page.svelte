@@ -4,6 +4,7 @@
 	import McItem from '$lib/components/McItem.svelte';
 	import SearchField from '$lib/components/SearchField.svelte';
 	import { i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
+	import { cappedResults, deferredValue } from '$lib/search.svelte';
 	import { statGroups, type StatEntry, type StatGroup } from '$lib/playerStats';
 	import {
 		matchesVanillaQuery,
@@ -19,8 +20,9 @@
 	let vanilla = $state<Partial<Record<VanillaGroup, string[]>>>({});
 	let vanillaReady = $state(false);
 	let openGroups = $state(closedVanilla());
+	const filterQuery = deferredValue(() => query);
 
-	const searching = $derived(query.trim().length > 0);
+	const searching = $derived(filterQuery.current.trim().length > 0);
 
 	function closedVanilla(): Record<VanillaGroup, boolean> {
 		return {
@@ -49,7 +51,7 @@
 
 	function curatedStats(group: StatGroup): StatEntry[] {
 		void i18n.locale;
-		const needle = query.trim().toLowerCase();
+		const needle = filterQuery.current.trim().toLowerCase();
 		if (!needle) {
 			return group.stats;
 		}
@@ -61,14 +63,19 @@
 
 	function vanillaIds(group: VanillaGroup): string[] {
 		void i18n.locale;
-		return (vanilla[group] ?? []).filter((id) => matchesVanillaQuery(group, id, query));
+		return (vanilla[group] ?? []).filter((id) => matchesVanillaQuery(group, id, filterQuery.current));
 	}
 
 	const curatedShown = $derived(statGroups.map((group) => ({ group, stats: curatedStats(group) })));
-	const vanillaShown = $derived(vanillaGroups.map((group) => ({ group, ids: vanillaIds(group) })));
+	const vanillaShown = $derived(
+		vanillaGroups.map((group) => {
+			const matched = vanillaIds(group);
+			return { group, matched: matched.length, ids: cappedResults(matched, searching) };
+		})
+	);
 	const hasMatches = $derived(
 		curatedShown.some((section) => section.stats.length > 0) ||
-			(vanillaReady && vanillaShown.some((section) => section.ids.length > 0))
+			(vanillaReady && vanillaShown.some((section) => section.matched > 0))
 	);
 
 	$effect(() => {
@@ -147,7 +154,7 @@
 		<Loader />
 	{:else}
 		{#each vanillaShown as section (section.group + i18n.locale)}
-			{#if section.ids.length > 0}
+			{#if section.matched > 0}
 				<section class="pack">
 					<div class="pack-head">
 						<button
