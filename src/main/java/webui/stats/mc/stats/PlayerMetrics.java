@@ -203,7 +203,7 @@ public final class PlayerMetrics {
 		for (String group : VanillaCatalog.GROUPS) {
 			vanilla.put(group, stats.groupValues(VanillaCatalog.jsonType(group)));
 		}
-		return new PlayerRecord(uuid, name, playHours, 0, values, categories, Map.of(), vanilla);
+		return new PlayerRecord(uuid, name, playHours, 0, values, categories, Map.of(), vanilla, Set.of(), Map.of());
 	}
 
 	private static double combatRaw(StatFile stats, long hostile) {

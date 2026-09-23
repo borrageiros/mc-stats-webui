@@ -5,6 +5,7 @@
 	import PlayerSkin from '$lib/components/PlayerSkin.svelte';
 	import RankingScore from '$lib/components/RankingScore.svelte';
 	import SearchField from '$lib/components/SearchField.svelte';
+	import Tabs from '$lib/components/Tabs.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { branding } from '$lib/branding.svelte';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
@@ -20,6 +21,12 @@
 	let query = $state('');
 
 	const ranking = $derived(rankings[selected] ?? null);
+	const tabs = $derived(
+		rankingIds.map((id) => ({
+			id,
+			label: tDynamic('leaderboard', id)
+		}))
+	);
 	const hint = $derived.by(() => {
 		void i18n.locale;
 		return boardHint(selected);
@@ -73,20 +80,7 @@
 		{#if ranking && ranking.entries.length > 0}
 			<HomePodium entries={ranking.entries} coin={selected === 'champion'} hint={hint} />
 		{/if}
-		<div class="tabs" role="tablist" aria-label={branding.title}>
-			{#each rankingIds as id}
-				<button
-					type="button"
-					class="mc-btn"
-					class:on={selected === id}
-					role="tab"
-					aria-selected={selected === id}
-					onclick={() => (selected = id)}
-				>
-					{tDynamic('leaderboard', id)}
-				</button>
-			{/each}
-		</div>
+		<Tabs {tabs} bind:selected label={branding.title} />
 		{#if ranking && ranking.entries.length > 0}
 			<div class="filters">
 				<SearchField bind:value={query} placeholder={t('home.search')} />
@@ -128,26 +122,6 @@
 		margin-top: 0;
 	}
 
-	.tabs {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.45rem;
-		margin: 0 0 1.15rem;
-	}
-
-	.tabs :global(.mc-btn) {
-		width: 100%;
-		min-height: 2.15rem;
-		padding: 0.28rem 0.55rem;
-	}
-
-	.tabs :global(.mc-btn.on) {
-		color: #ffffa0;
-		background: var(--button-face-hover);
-		border-color: var(--button-border-hover);
-		box-shadow: inset 2px 2px 0 var(--button-highlight-hover), inset -2px -2px 0 var(--button-shadow-hover);
-	}
-
 	.filters {
 		margin: 0 0 0.85rem;
 	}
@@ -187,9 +161,4 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	@media (max-width: 520px) {
-		.tabs {
-			grid-template-columns: 1fr;
-		}
-	}
 </style>

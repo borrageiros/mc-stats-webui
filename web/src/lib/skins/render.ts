@@ -79,7 +79,7 @@ export async function createBodyViewer(canvas: HTMLCanvasElement, uuid: string):
 		backEquipment: textures.capeUrl ? 'cape' : 'none',
 		slim: textures.slim,
 		enableRotate: true,
-		enableZoom: true,
+		enableZoom: false,
 		autoRotate: false,
 		zoom: defaultBodyZoom
 	});

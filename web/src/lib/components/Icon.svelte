@@ -152,6 +152,17 @@
 			stroke-linejoin="round"
 		/>
 	</svg>
+{:else if name === 'zoom'}
+	<svg viewBox="0 0 24 24" aria-hidden="true">
+		<circle cx="10.4" cy="10.4" r="5.4" fill="none" stroke="currentColor" stroke-width="1.8" />
+		<path
+			d="M14.4 14.4 20 20M10.4 8v4.8M8 10.4h4.8"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.8"
+			stroke-linecap="round"
+		/>
+	</svg>
 {:else if name === 'cape'}
 	<svg viewBox="0 0 24 24" aria-hidden="true">
 		<circle cx="12" cy="5" r="2.1" fill="none" stroke="currentColor" stroke-width="1.8" />

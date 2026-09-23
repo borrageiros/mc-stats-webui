@@ -34,6 +34,8 @@ export function itemTextureUrls(id: string): string[] {
 	}
 	for (const candidate of [
 		`/mc/item/${name}.png`,
+		`/mc/inv/${name}.png`,
+		`/mc/iso/${name}.png`,
 		`/mc/block/${name}.png`,
 		`/mc/item/${name}_spawn_egg.png`,
 		`/mc/block/${name}_front.png`,

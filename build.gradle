@@ -57,6 +57,7 @@ tasks.register('extractMcTextures', Exec) {
 	inputs.file file('scripts/extract_mc_textures.py')
 	outputs.dir file('web/static/mc')
 	outputs.file file('web/src/lib/mc/icons.json')
+	outputs.file file('web/src/lib/mc/advancementLang.json')
 	environment 'MC_VERSION', version
 	environment 'GRADLE_USER_HOME', gradle.gradleUserHomeDir.absolutePath
 	if (isWindows) {

@@ -96,5 +96,19 @@ export function pageTitle(page: string): string {
 	return formatWindowTitle(page);
 }
 
+export function formatWhen(ms: number, fallback = '✓'): string {
+	if (!ms) {
+		return fallback;
+	}
+	return new Date(ms).toLocaleString(i18n.locale, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
+}
+
 export { locales, type Locale } from './locales';
 export type { MessageKey };

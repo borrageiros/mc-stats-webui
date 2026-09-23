@@ -6,12 +6,19 @@
 	import PlayerSkin from '$lib/components/PlayerSkin.svelte';
 	import RankingScore from '$lib/components/RankingScore.svelte';
 	import SearchField from '$lib/components/SearchField.svelte';
+	import Tabs from '$lib/components/Tabs.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
-	import { getPlayerProfile } from '$lib/api';
+	import {
+		advancementHref,
+		advancementTabTitle,
+		advancementTitle,
+		matchesAdvancementQuery
+	} from '$lib/advancements';
+	import { getAdvancements, getLeaderboards, getPlayerProfile } from '$lib/api';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
-	import { gradeItems, gradeOrder, statGroups } from '$lib/playerStats';
+	import { gradeItems, gradeOrder } from '$lib/playerStats';
 	import { cappedResults, deferredValue } from '$lib/search.svelte';
-	import type { PlayerDetail } from '$lib/types';
+	import type { AdvancementInfo, AdvancementTab, LeaderboardCategory, PlayerDetail } from '$lib/types';
 	import {
 		hideZerosByDefault,
 		vanillaBoardHref,
@@ -23,14 +30,24 @@
 	} from '$lib/vanillaStats';
 
 	let player = $state<PlayerDetail | null>(null);
+	let catalog = $state<AdvancementInfo[]>([]);
+	let advancementTabs = $state<AdvancementTab[]>([]);
+	let statCategories = $state<LeaderboardCategory[]>([]);
 	let failed = $state(false);
 	let loading = $state(true);
 	let query = $state('');
 	let hideZeros = $state({ ...hideZerosByDefault });
+	let hideLocked = $state(false);
+	let profileTab = $state('stats');
 	let openGroups = $state(closedGroups());
+	let openAdvancementTabs = $state<Record<string, boolean>>({});
 	const filterQuery = deferredValue(() => query);
 
 	const searching = $derived(filterQuery.current.trim().length > 0);
+	const profileTabs = $derived([
+		{ id: 'stats', label: t('player.stats') },
+		{ id: 'advancements', label: t('player.advancements') }
+	]);
 
 	function closedGroups(): Record<VanillaGroup, boolean> {
 		return {
@@ -57,20 +74,47 @@
 		openGroups = { ...openGroups, [group]: !openGroups[group] };
 	}
 
+	function isAdvancementOpen(tab: string) {
+		return searching || Boolean(openAdvancementTabs[tab]);
+	}
+
+	function toggleAdvancementTab(tab: string) {
+		if (searching) {
+			return;
+		}
+		openAdvancementTabs = { ...openAdvancementTabs, [tab]: !openAdvancementTabs[tab] };
+	}
+
 	$effect(() => {
 		const name = page.params.name;
 		if (!name) {
 			return;
 		}
 		player = null;
+		catalog = [];
+		advancementTabs = [];
+		statCategories = [];
 		failed = false;
 		loading = true;
 		query = '';
 		hideZeros = { ...hideZerosByDefault };
+		hideLocked = false;
+		profileTab = 'stats';
 		openGroups = closedGroups();
-		getPlayerProfile(name)
-			.then((data) => {
+		openAdvancementTabs = {};
+		Promise.all([
+			getPlayerProfile(name),
+			getAdvancements().catch(() => null),
+			getLeaderboards().catch(() => null)
+		])
+			.then(([data, advancements, boards]) => {
 				player = data;
+				catalog = advancements?.advancements ?? [];
+				advancementTabs = advancements?.tabs ?? [];
+				statCategories = boards?.categories ?? [];
+				openAdvancementTabs = Object.fromEntries(
+					(advancements?.tabs ?? []).map((tab) => [tab.id, true])
+				);
 				failed = false;
 			})
 			.catch(() => {
@@ -98,6 +142,24 @@
 	const rateHint = $derived.by(() => {
 		void i18n.locale;
 		return boardHint('efficient');
+	});
+	const doneIds = $derived(new Set(player?.advancements?.ids ?? []));
+	const advancementSections = $derived.by(() => {
+		void i18n.locale;
+		const needle = filterQuery.current;
+		return advancementTabs
+			.map((tab) => {
+				const items = catalog.filter((item) => item.tab === tab.id);
+				const matched = items.filter((item) => {
+					const done = doneIds.has(item.id);
+					if (hideLocked && !done) {
+						return false;
+					}
+					return matchesAdvancementQuery(item.id, item.title, item.description, needle);
+				});
+				return { tab, items, matched, ids: cappedResults(matched, searching) };
+			})
+			.filter((section) => section.matched.length > 0);
 	});
 </script>
 
@@ -160,10 +222,70 @@
 		</div>
 	</section>
 
-	{#if player.vanilla}
-		<div class="filters">
-			<SearchField bind:value={query} placeholder={t('player.search')} />
+	<Tabs tabs={profileTabs} bind:selected={profileTab} label={player.name} />
+
+	<div class="filters">
+		<SearchField
+			bind:value={query}
+			placeholder={profileTab === 'advancements' ? t('advancements.search') : t('player.search')}
+		/>
+	</div>
+
+	{#if profileTab === 'advancements'}
+		<div class="pack-head">
+			<span class="count"
+				>{t('advancements.doneOf', {
+					done: player.advancements?.done ?? 0,
+					total: player.advancements?.total || catalog.length
+				})}</span
+			>
+			<label class="toggle">
+				<input type="checkbox" bind:checked={hideLocked} />
+				{t('player.hideLocked')}
+			</label>
 		</div>
+		{#if advancementSections.length === 0}
+			<p class="muted">{player.advancements?.done ? t('player.noMatches') : t('player.noAdvancements')}</p>
+		{:else}
+			{#each advancementSections as section (section.tab.id + i18n.locale)}
+				<section class="pack">
+					<div class="pack-head">
+						<button
+							class="fold"
+							type="button"
+							aria-expanded={isAdvancementOpen(section.tab.id)}
+							onclick={() => toggleAdvancementTab(section.tab.id)}
+						>
+							<span class="chevron" class:open={isAdvancementOpen(section.tab.id)}>▸</span>
+							<span class="pack-title">
+								<McItem id={section.tab.icon} compact />
+								{advancementTabTitle(section.tab.id, section.tab.title)}
+								<span class="count"
+									>{t('player.shown', {
+										shown: section.ids.length,
+										total: section.items.length
+									})}</span
+								>
+							</span>
+						</button>
+					</div>
+					{#if isAdvancementOpen(section.tab.id)}
+						<div class="tiles">
+							{#each section.ids as item (item.id)}
+								{@const done = doneIds.has(item.id)}
+								<a class="tile slot" class:zero={!done} href={advancementHref(item.id)}>
+									<span class="glyph">
+										<McItem id={item.icon} />
+									</span>
+									<span class="label">{advancementTitle(item.id, item.title)}</span>
+								</a>
+							{/each}
+						</div>
+					{/if}
+				</section>
+			{/each}
+		{/if}
+	{:else if player.vanilla}
 		{#each vanillaGroups as group (group + i18n.locale)}
 			{@const rows = player.vanilla[group] ?? []}
 			{@const matched = visibleVanilla(group, rows, filterQuery.current, hideZeros[group])}
@@ -210,11 +332,11 @@
 			</section>
 		{/each}
 	{:else}
-		{#each statGroups as group}
+		{#each statCategories as group}
 			<section class="pack">
-				<h2>{tDynamic('category', group.category)}</h2>
+				<h2>{tDynamic('category', group.id)}</h2>
 				<div class="tiles">
-					{#each group.stats as stat}
+					{#each group.boards as stat}
 						{@const row = player.stats[stat.id]}
 						<a class="tile slot" class:zero={!row || row.value <= 0} href="/leaderboards/{stat.id}">
 							<span class="glyph">
@@ -445,6 +567,9 @@
 	}
 
 	.pack-title {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
 		font-size: 1rem;
 	}
 

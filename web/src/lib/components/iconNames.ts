@@ -14,6 +14,7 @@ export type IconName =
 	| 'pause'
 	| 'play'
 	| 'rotate'
+	| 'zoom'
 	| 'cape'
 	| 'elytra'
 	| 'capeOff';

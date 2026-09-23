@@ -5,7 +5,7 @@
 	import SearchField from '$lib/components/SearchField.svelte';
 	import { i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import { cappedResults, deferredValue } from '$lib/search.svelte';
-	import { statGroups, type StatEntry, type StatGroup } from '$lib/playerStats';
+	import type { LeaderboardBoard, LeaderboardCategory, LeaderboardsResponse } from '$lib/types';
 	import {
 		matchesVanillaQuery,
 		vanillaBoardHref,
@@ -17,6 +17,7 @@
 	} from '$lib/vanillaStats';
 
 	let query = $state('');
+	let catalog = $state<LeaderboardsResponse | null>(null);
 	let vanilla = $state<Partial<Record<VanillaGroup, string[]>>>({});
 	let vanillaReady = $state(false);
 	let openGroups = $state(closedVanilla());
@@ -49,15 +50,15 @@
 		openGroups = { ...openGroups, [group]: !openGroups[group] };
 	}
 
-	function curatedStats(group: StatGroup): StatEntry[] {
+	function curatedBoards(category: LeaderboardCategory): LeaderboardBoard[] {
 		void i18n.locale;
 		const needle = filterQuery.current.trim().toLowerCase();
 		if (!needle) {
-			return group.stats;
+			return category.boards;
 		}
-		return group.stats.filter((stat) => {
-			const label = tDynamic('leaderboard', stat.id).toLowerCase();
-			return label.includes(needle) || stat.id.toLowerCase().includes(needle);
+		return category.boards.filter((board) => {
+			const label = tDynamic('leaderboard', board.id).toLowerCase();
+			return label.includes(needle) || board.id.toLowerCase().includes(needle);
 		});
 	}
 
@@ -66,7 +67,12 @@
 		return (vanilla[group] ?? []).filter((id) => matchesVanillaQuery(group, id, filterQuery.current));
 	}
 
-	const curatedShown = $derived(statGroups.map((group) => ({ group, stats: curatedStats(group) })));
+	const curatedShown = $derived(
+		(catalog?.categories ?? []).map((category) => ({
+			category,
+			boards: curatedBoards(category)
+		}))
+	);
 	const vanillaShown = $derived(
 		vanillaGroups.map((group) => {
 			const matched = vanillaIds(group);
@@ -74,7 +80,7 @@
 		})
 	);
 	const hasMatches = $derived(
-		curatedShown.some((section) => section.stats.length > 0) ||
+		curatedShown.some((section) => section.boards.length > 0) ||
 			(vanillaReady && vanillaShown.some((section) => section.matched > 0))
 	);
 
@@ -87,6 +93,7 @@
 		const next: Partial<Record<VanillaGroup, string[]>> = {};
 		try {
 			const data = await getLeaderboards();
+			catalog = data;
 			for (const group of vanillaGroups) {
 				next[group] = data.vanilla?.[group] ?? [];
 			}
@@ -96,7 +103,6 @@
 				return;
 			}
 		} catch {
-			// Use a player profile, which already lists every vanilla key.
 		}
 		try {
 			const list = await getPlayers();
@@ -132,17 +138,17 @@
 
 {#if hasMatches}
 	{#each curatedShown as section}
-		{#if section.stats.length > 0}
+		{#if section.boards.length > 0}
 			<section>
 				<h2>
-					<McItem id={section.group.icon} compact />
-					{tDynamic('category', section.group.category)}
+					<McItem id={section.category.icon} compact />
+					{tDynamic('category', section.category.id)}
 				</h2>
 				<div class="grid">
-					{#each section.stats as stat}
-						<a class="mc-btn" href="/leaderboards/{stat.id}">
-							<McItem id={stat.icon} compact />
-							<span>{tDynamic('leaderboard', stat.id)}</span>
+					{#each section.boards as board}
+						<a class="mc-btn" href="/leaderboards/{board.id}">
+							<McItem id={board.icon} compact />
+							<span>{tDynamic('leaderboard', board.id)}</span>
 						</a>
 					{/each}
 				</div>

@@ -4,11 +4,13 @@ import com.sun.net.httpserver.HttpServer;
 import net.minecraft.server.MinecraftServer;
 import webui.stats.mc.McStatsWebui;
 import webui.stats.mc.WebConfig;
+import webui.stats.mc.stats.AdvancementCatalog;
 import webui.stats.mc.stats.StatsCache;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -46,7 +48,8 @@ public final class StatsHttpServer {
 		httpServer.setExecutor(executor);
 		staticHandler.preload();
 		Path world = apiHandler.resolveWorld(server);
-		StatsCache.get().boot(world, apiHandler.onlineNames(server));
+		AdvancementCatalog.get().boot(server);
+		StatsCache.get().boot(world, Map.of());
 		httpServer.createContext("/api", exchange -> {
 			try {
 				MinecraftServer current = minecraft;
@@ -111,5 +114,6 @@ public final class StatsHttpServer {
 		}
 		minecraft = null;
 		StatsCache.get().clear();
+		AdvancementCatalog.get().clear();
 	}
 }

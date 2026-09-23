@@ -11,7 +11,7 @@ A **Fabric server mod** that embeds a small web UI + API. Players open it in a b
 ## ✨ Features
 
 - 🏆 Home podium with **Champion**, **Most dedicated**, and **Most efficient** crowns
-- 📋 Player profiles with skins, grades, and full vanilla stats
+- 🥇 Vanilla advancements: who has the most, who unlocked a specific one, and a player’s full list
 - 🆚 Side-by-side player compare
 - 📊 Leaderboards for the whole vanilla stats catalog (custom, mined, killed, …)
 - 🧮 Transparent scoring (“How we rank”) — farms inflate some boards on purpose

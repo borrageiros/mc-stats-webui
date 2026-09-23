@@ -80,10 +80,11 @@ public final class StatsCache {
 		}
 		List<UUID> batch = new ArrayList<>(dirty);
 		for (UUID uuid : batch) {
-			ServerPlayer online = server.getPlayerList().getPlayer(uuid);
-			if (online != null) {
-				rememberName(uuid, online.getGameProfile().name());
-				online.getStats().save();
+			ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+			if (player != null) {
+				rememberName(uuid, player.getGameProfile().name());
+				player.getAdvancements().save();
+				player.getStats().save();
 			} else {
 				dirty.remove(uuid);
 				reloadPlayer(uuid);
@@ -92,17 +93,12 @@ public final class StatsCache {
 	}
 
 	public List<PlayerRecord> snapshot(MinecraftServer server) {
-		Map<UUID, String> onlineNames = new LinkedHashMap<>();
-		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			UUID id = player.getGameProfile().id();
-			String name = player.getGameProfile().name();
-			onlineNames.put(id, name);
-			rememberName(id, name);
-		}
 		if (!isReady()) {
+			AdvancementCatalog.get().ensure(server);
 			Path root = worldRoot != null ? worldRoot : StatsService.statsDirectory(server);
-			boot(root, onlineNames);
+			boot(root, Map.of());
 		}
+		AdvancementCatalog.get().ensure(server);
 		flushDirty(server);
 		synchronized (lock) {
 			return List.copyOf(players);

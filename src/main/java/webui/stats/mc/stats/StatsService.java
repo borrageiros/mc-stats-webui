@@ -63,7 +63,8 @@ public final class StatsService {
 		List<PlayerRecord> players = new ArrayList<>();
 		for (Map.Entry<UUID, StatFile> entry : parsed.entrySet()) {
 			UUID uuid = entry.getKey();
-			players.add(PlayerMetrics.compute(uuid, names.get(uuid), entry.getValue()));
+			PlayerRecord player = PlayerMetrics.compute(uuid, names.get(uuid), entry.getValue());
+			players.add(withAdvancements(player, readAdvancements(worldRoot, uuid)));
 		}
 		return ChampionScorer.apply(players);
 	}
@@ -79,7 +80,8 @@ public final class StatsService {
 		}
 		NameDirectory names = nameDirectory(knownNames);
 		names.resolveMissing(Set.of(uuid));
-		return PlayerMetrics.compute(uuid, names.get(uuid), stats);
+		PlayerRecord player = PlayerMetrics.compute(uuid, names.get(uuid), stats);
+		return withAdvancements(player, readAdvancements(worldRoot, uuid));
 	}
 
 	public static Path statsDirectory(Path worldRoot) {
@@ -108,6 +110,50 @@ public final class StatsService {
 			names.put(entry.getKey(), entry.getValue());
 		}
 		return names;
+	}
+
+	public static Path advancementsDirectory(Path worldRoot) {
+		if (worldRoot == null) {
+			return null;
+		}
+		List<Path> candidates = new ArrayList<>();
+		candidates.add(worldRoot.resolve("players").resolve("advancements"));
+		candidates.add(worldRoot.resolve("advancements"));
+		for (Path path : candidates) {
+			if (Files.isDirectory(path)) {
+				return path;
+			}
+		}
+		return candidates.getFirst();
+	}
+
+	private static Path advancementsFile(Path worldRoot, UUID uuid) {
+		Path directory = advancementsDirectory(worldRoot);
+		if (directory == null) {
+			return null;
+		}
+		return directory.resolve(uuid + ".json");
+	}
+
+	private static AdvancementProgressFile readAdvancements(Path worldRoot, UUID uuid) {
+		return AdvancementProgressFile.read(advancementsFile(worldRoot, uuid));
+	}
+
+	private static PlayerRecord withAdvancements(PlayerRecord player, AdvancementProgressFile progress) {
+		Set<String> known = AdvancementCatalog.get().ids();
+		Set<String> done = new HashSet<>();
+		Map<String, Long> times = new LinkedHashMap<>();
+		for (String id : progress.done) {
+			if (!known.isEmpty() && !known.contains(id)) {
+				continue;
+			}
+			done.add(id);
+			long at = progress.obtainedAt.getOrDefault(id, 0L);
+			if (at > 0) {
+				times.put(id, at);
+			}
+		}
+		return player.withAdvancements(done, times);
 	}
 
 	private static Path statsFile(Path worldRoot, UUID uuid) {
@@ -141,8 +187,14 @@ public final class StatsService {
 	}
 
 	public static Map<String, Object> playersPayload(List<PlayerRecord> players) {
+		List<PlayerRecord> ranked = new ArrayList<>(players);
+		ranked.sort(
+			Comparator.comparingDouble((PlayerRecord player) -> player.playHours)
+				.reversed()
+				.thenComparing(player -> player.name, String.CASE_INSENSITIVE_ORDER)
+		);
 		List<Map<String, Object>> list = new ArrayList<>();
-		for (PlayerRecord player : players) {
+		for (PlayerRecord player : ranked) {
 			list.add(playerSummary(player));
 		}
 		return Map.of("players", list);
@@ -176,7 +228,17 @@ public final class StatsService {
 		}
 		item.put("stats", stats);
 		item.put("vanilla", vanillaPayload(player, players));
+		item.put("advancements", advancementsPayload(player, players));
 		return item;
+	}
+
+	private static Map<String, Object> advancementsPayload(PlayerRecord player, List<PlayerRecord> players) {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("done", player.advancements.size());
+		body.put("total", AdvancementCatalog.get().size());
+		body.put("rank", rank(players, "advancements", player));
+		body.put("ids", List.copyOf(player.advancements));
+		return body;
 	}
 
 	private static Map<String, Object> vanillaPayload(PlayerRecord player, List<PlayerRecord> players) {
@@ -250,7 +312,7 @@ public final class StatsService {
 		if (!VanillaCatalog.isGroup(group) || !VanillaCatalog.keys(group).contains(statId)) {
 			return null;
 		}
-		return new LeaderboardInfo(path, statId, group, vanillaUnit(group, statId));
+		return LeaderboardCatalog.vanilla(path, group, vanillaUnit(group, statId));
 	}
 
 	public static Map<String, Object> leaderboardPayload(LeaderboardInfo info, List<PlayerRecord> players) {
@@ -279,9 +341,11 @@ public final class StatsService {
 		}
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("id", info.id());
-		body.put("title", info.title());
+		body.put("title", info.id());
 		body.put("category", info.category());
 		body.put("unit", info.unit());
+		body.put("icon", info.icon());
+		body.put("lowerWins", info.lowerWins());
 		body.put("entries", entries);
 		return body;
 	}
@@ -295,22 +359,43 @@ public final class StatsService {
 	}
 
 	public static Map<String, Object> catalogPayload() {
-		List<Map<String, Object>> items = new ArrayList<>();
+		List<Map<String, Object>> boards = new ArrayList<>();
 		for (LeaderboardInfo info : LeaderboardCatalog.all()) {
-			Map<String, Object> item = new LinkedHashMap<>();
-			item.put("id", info.id());
-			item.put("title", info.title());
-			item.put("category", info.category());
-			items.add(item);
+			boards.add(boardPayload(info));
+		}
+		List<Map<String, Object>> categories = new ArrayList<>();
+		for (Map.Entry<String, List<LeaderboardInfo>> entry : LeaderboardCatalog.listedByCategory().entrySet()) {
+			List<Map<String, Object>> listed = new ArrayList<>();
+			for (LeaderboardInfo info : entry.getValue()) {
+				listed.add(boardPayload(info));
+			}
+			Map<String, Object> category = new LinkedHashMap<>();
+			category.put("id", entry.getKey());
+			category.put("icon", LeaderboardCatalog.categoryIcon(entry.getKey()));
+			category.put("boards", listed);
+			categories.add(category);
 		}
 		Map<String, Object> vanilla = new LinkedHashMap<>();
 		for (String group : VanillaCatalog.GROUPS) {
 			vanilla.put(group, VanillaCatalog.keys(group));
 		}
 		Map<String, Object> body = new LinkedHashMap<>();
-		body.put("leaderboards", items);
+		body.put("categories", categories);
+		body.put("boards", boards);
 		body.put("vanilla", vanilla);
 		return body;
+	}
+
+	private static Map<String, Object> boardPayload(LeaderboardInfo info) {
+		Map<String, Object> item = new LinkedHashMap<>();
+		item.put("id", info.id());
+		item.put("category", info.category());
+		item.put("unit", info.unit());
+		item.put("icon", info.icon());
+		item.put("listed", info.listed());
+		item.put("compare", info.compare());
+		item.put("lowerWins", info.lowerWins());
+		return item;
 	}
 
 	public static PlayerRecord find(List<PlayerRecord> players, String name) {
@@ -326,6 +411,16 @@ public final class StatsService {
 		Map<String, Object> item = new LinkedHashMap<>();
 		item.put("name", player.name);
 		item.put("uuid", player.uuid.toString());
+		item.put("playHours", round(player.playHours));
+		item.put("playHoursDisplay", display("hours", player.playHours));
+		item.put("championScore", round(player.championScore));
+		item.put("championDisplay", display("score", player.championScore));
+		item.put("scorePerHour", round(player.scorePerHour));
+		item.put("scorePerHourDisplay", display("score_per_hour", player.scorePerHour));
+		Map<String, Object> advancements = new LinkedHashMap<>();
+		advancements.put("done", player.advancements.size());
+		advancements.put("total", AdvancementCatalog.get().size());
+		item.put("advancements", advancements);
 		return item;
 	}
 

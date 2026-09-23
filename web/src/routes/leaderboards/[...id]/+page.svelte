@@ -10,15 +10,8 @@
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { getLeaderboard } from '$lib/api';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
-	import { statItems } from '$lib/playerStats';
 	import type { LeaderboardResponse } from '$lib/types';
 	import { parseVanillaBoardId, vanillaHint, vanillaIcon, vanillaLabel } from '$lib/vanillaStats';
-
-	const crownIcons: Record<string, string> = {
-		champion: 'minecraft:nether_star',
-		dedicated: 'minecraft:clock',
-		efficient: 'minecraft:experience_bottle'
-	};
 
 	let board = $state<LeaderboardResponse | null>(null);
 	let failed = $state(false);
@@ -42,8 +35,7 @@
 		if (vanilla) {
 			return vanillaIcon(vanilla.group, vanilla.id);
 		}
-		const id = board?.id ?? boardId;
-		return crownIcons[id] ?? statItems[id] ?? '';
+		return board?.icon || '';
 	});
 	const categoryLabel = $derived.by(() => {
 		void i18n.locale;

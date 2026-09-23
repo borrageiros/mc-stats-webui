@@ -3,10 +3,12 @@ package webui.stats.mc.web;
 import com.sun.net.httpserver.HttpExchange;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
 import webui.stats.mc.McStatsWebui;
 import webui.stats.mc.WebConfig;
+import webui.stats.mc.stats.AdvancementCatalog;
+import webui.stats.mc.stats.AdvancementInfo;
+import webui.stats.mc.stats.AdvancementService;
 import webui.stats.mc.stats.PlayerRecord;
 import webui.stats.mc.stats.StatsCache;
 import webui.stats.mc.stats.StatsService;
@@ -18,7 +20,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +51,11 @@ public final class ApiHandler {
 				case "/api/players" -> HttpJson.send(exchange, 200, StatsService.playersPayload(players));
 				case "/api/leaderboards" -> HttpJson.send(exchange, 200, StatsService.catalogPayload());
 				case "/api/crowns" -> HttpJson.send(exchange, 200, StatsService.crownsPayload(players));
+				case "/api/advancements" -> HttpJson.send(exchange, 200, AdvancementService.catalogPayload(players));
+				case "/api/advancements/most" -> {
+					LeaderboardInfo info = LeaderboardCatalog.find("advancements");
+					HttpJson.send(exchange, 200, StatsService.leaderboardPayload(info, players));
+				}
 				default -> handleDynamic(exchange, path, players);
 			}
 		} catch (Exception e) {
@@ -79,6 +85,17 @@ public final class ApiHandler {
 			HttpJson.send(exchange, 200, StatsService.leaderboardPayload(info, players));
 			return;
 		}
+		if (path.startsWith("/api/advancements/")) {
+			String raw = decode(path.substring("/api/advancements/".length()));
+			String id = toAdvancementId(raw);
+			AdvancementInfo info = AdvancementCatalog.get().find(id);
+			if (info == null) {
+				HttpJson.error(exchange, 404, "not_found", "Unknown advancement");
+				return;
+			}
+			HttpJson.send(exchange, 200, AdvancementService.detailPayload(info, players));
+			return;
+		}
 		HttpJson.error(exchange, 404, "not_found", "Unknown endpoint");
 	}
 
@@ -89,6 +106,7 @@ public final class ApiHandler {
 		body.put("players", "/api/players");
 		body.put("leaderboards", "/api/leaderboards");
 		body.put("crowns", "/api/crowns");
+		body.put("advancements", "/api/advancements");
 		return body;
 	}
 
@@ -117,14 +135,6 @@ public final class ApiHandler {
 		return FabricLoader.getInstance().getGameDir().resolve(folder);
 	}
 
-	public Map<UUID, String> onlineNames(MinecraftServer server) {
-		Map<UUID, String> names = new LinkedHashMap<>();
-		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			names.put(player.getGameProfile().id(), player.getGameProfile().name());
-		}
-		return names;
-	}
-
 	private <T> T onServerThread(MinecraftServer server, ServerRead<T> read) throws Exception {
 		CompletableFuture<T> future = new CompletableFuture<>();
 		server.execute(() -> {
@@ -135,6 +145,14 @@ public final class ApiHandler {
 			}
 		});
 		return future.get(5, TimeUnit.SECONDS);
+	}
+
+	private static String toAdvancementId(String path) {
+		int slash = path.indexOf('/');
+		if (slash <= 0) {
+			return path;
+		}
+		return path.substring(0, slash) + ":" + path.substring(slash + 1);
 	}
 
 	private static String decode(String value) {

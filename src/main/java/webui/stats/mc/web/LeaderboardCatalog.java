@@ -1,62 +1,92 @@
 package webui.stats.mc.web;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class LeaderboardCatalog {
+	private static final List<String> LISTED_CATEGORIES = List.of(
+		"advancements",
+		"life",
+		"exploration",
+		"mining",
+		"deaths",
+		"combat"
+	);
+
+	private static final Map<String, String> CATEGORY_ICONS = Map.of(
+		"crowns",
+		"minecraft:nether_star",
+		"advancements",
+		"minecraft:experience_bottle",
+		"life",
+		"minecraft:clock",
+		"exploration",
+		"minecraft:compass",
+		"mining",
+		"minecraft:diamond_pickaxe",
+		"deaths",
+		"minecraft:bone",
+		"combat",
+		"minecraft:iron_sword"
+	);
+
 	private static final List<LeaderboardInfo> ALL = List.of(
-		new LeaderboardInfo("champion", "Campeón", "crowns", "score"),
-		new LeaderboardInfo("dedicated", "Más dedicado", "crowns", "hours"),
-		new LeaderboardInfo("efficient", "Más eficiente", "crowns", "score_per_hour"),
-		new LeaderboardInfo("hostile-kills", "Hostiles (sin farms)", "combat", "kills"),
-		new LeaderboardInfo("farm-kills", "Farms", "combat", "kills"),
-		new LeaderboardInfo("zombies", "Zombis", "combat", "kills"),
-		new LeaderboardInfo("skeletons", "Esqueletos", "combat", "kills"),
-		new LeaderboardInfo("creepers", "Creepers", "combat", "kills"),
-		new LeaderboardInfo("endermen", "Endermans", "combat", "kills"),
-		new LeaderboardInfo("blazes", "Blazes", "combat", "kills"),
-		new LeaderboardInfo("wither-skeletons", "Wither skeletons", "combat", "kills"),
-		new LeaderboardInfo("ender-dragon", "Dragón", "combat", "kills"),
-		new LeaderboardInfo("wither", "Wither", "combat", "kills"),
-		new LeaderboardInfo("warden", "Warden", "combat", "kills"),
-		new LeaderboardInfo("elder-guardian", "Guardián anciano", "combat", "kills"),
-		new LeaderboardInfo("bosses", "Jefes", "combat", "kills"),
-		new LeaderboardInfo("raids-won", "Raids ganadas", "combat", "count"),
-		new LeaderboardInfo("player-kills", "Jugadores matados", "combat", "kills"),
-		new LeaderboardInfo("damage-dealt", "Daño melee", "combat", "hearts"),
-		new LeaderboardInfo("kills-per-hour", "Kills por hora", "combat", "kills_per_hour"),
-		new LeaderboardInfo("blocks-mined", "Bloques picados", "mining", "blocks"),
-		new LeaderboardInfo("ores", "Ores", "mining", "blocks"),
-		new LeaderboardInfo("diamonds-mined", "Diamantes picados", "mining", "blocks"),
-		new LeaderboardInfo("iron-mined", "Hierro picado", "mining", "blocks"),
-		new LeaderboardInfo("ancient-debris", "Ancient debris", "mining", "blocks"),
-		new LeaderboardInfo("logs-mined", "Troncos", "mining", "blocks"),
-		new LeaderboardInfo("sculk-mined", "Sculk", "mining", "blocks"),
-		new LeaderboardInfo("tools-broken", "Herramientas rotas", "mining", "count"),
-		new LeaderboardInfo("distance-total", "Distancia útil", "exploration", "km"),
-		new LeaderboardInfo("distance-walk-sprint", "Andar y sprint", "exploration", "km"),
-		new LeaderboardInfo("distance-walk", "Andar", "exploration", "km"),
-		new LeaderboardInfo("distance-sprint", "Sprint", "exploration", "km"),
-		new LeaderboardInfo("distance-swim", "Nadar", "exploration", "km"),
-		new LeaderboardInfo("distance-boat", "Barco", "exploration", "km"),
-		new LeaderboardInfo("distance-elytra", "Élitros", "exploration", "km"),
-		new LeaderboardInfo("distance-horse", "Caballo", "exploration", "km"),
-		new LeaderboardInfo("distance-happy-ghast", "Happy Ghast", "exploration", "km"),
-		new LeaderboardInfo("distance-nautilus", "Nautilus", "exploration", "km"),
-		new LeaderboardInfo("distance-minecart", "Vagoneta", "exploration", "km"),
-		new LeaderboardInfo("distance-strider", "Strider", "exploration", "km"),
-		new LeaderboardInfo("chests-opened", "Cofres abiertos", "exploration", "count"),
-		new LeaderboardInfo("play-time", "Tiempo jugado", "life", "hours"),
-		new LeaderboardInfo("animals-bred", "Animales criados", "life", "count"),
-		new LeaderboardInfo("fish-caught", "Peces", "life", "count"),
-		new LeaderboardInfo("villager-trades", "Tratos", "life", "count"),
-		new LeaderboardInfo("items-enchanted", "Encantamientos", "life", "count"),
-		new LeaderboardInfo("sleeps", "Veces dormido", "life", "count"),
-		new LeaderboardInfo("jumps", "Saltos", "life", "count"),
-		new LeaderboardInfo("deaths", "Muertes totales", "deaths", "count"),
-		new LeaderboardInfo("killed-by-zombie", "Muertes por zombi", "deaths", "count"),
-		new LeaderboardInfo("killed-by-creeper", "Muertes por creeper", "deaths", "count"),
-		new LeaderboardInfo("killed-by-skeleton", "Muertes por esqueleto", "deaths", "count"),
-		new LeaderboardInfo("killed-by-warden", "Muertes por warden", "deaths", "count")
+		crown("champion", "score", "minecraft:nether_star"),
+		crown("dedicated", "hours", "minecraft:clock"),
+		crown("efficient", "score_per_hour", "minecraft:experience_bottle"),
+		hiddenCompare("advancements", "advancements", "count", "minecraft:experience_bottle"),
+		hiddenCompare("play-time", "life", "hours", "minecraft:clock"),
+		board("animals-bred", "life", "count", "minecraft:wheat"),
+		board("fish-caught", "life", "count", "minecraft:fishing_rod"),
+		board("villager-trades", "life", "count", "minecraft:emerald"),
+		board("items-enchanted", "life", "count", "minecraft:enchanted_book"),
+		board("sleeps", "life", "count", "minecraft:red_bed"),
+		board("jumps", "life", "count", "minecraft:rabbit_foot"),
+		board("distance-total", "exploration", "km", "minecraft:compass"),
+		board("distance-walk-sprint", "exploration", "km", "minecraft:leather_boots"),
+		board("distance-walk", "exploration", "km", "minecraft:leather_boots"),
+		board("distance-sprint", "exploration", "km", "minecraft:sugar"),
+		board("distance-swim", "exploration", "km", "minecraft:heart_of_the_sea"),
+		board("distance-boat", "exploration", "km", "minecraft:oak_boat"),
+		board("distance-elytra", "exploration", "km", "minecraft:elytra"),
+		board("distance-horse", "exploration", "km", "minecraft:saddle"),
+		board("distance-happy-ghast", "exploration", "km", "minecraft:happy_ghast_spawn_egg"),
+		board("distance-nautilus", "exploration", "km", "minecraft:nautilus_shell"),
+		board("distance-minecart", "exploration", "km", "minecraft:minecart"),
+		board("distance-strider", "exploration", "km", "minecraft:warped_fungus_on_a_stick"),
+		board("chests-opened", "exploration", "count", "minecraft:chest"),
+		board("blocks-mined", "mining", "blocks", "minecraft:diamond_pickaxe"),
+		board("ores", "mining", "blocks", "minecraft:iron_ore"),
+		board("diamonds-mined", "mining", "blocks", "minecraft:diamond"),
+		board("iron-mined", "mining", "blocks", "minecraft:iron_ingot"),
+		board("ancient-debris", "mining", "blocks", "minecraft:ancient_debris"),
+		board("logs-mined", "mining", "blocks", "minecraft:oak_log"),
+		board("sculk-mined", "mining", "blocks", "minecraft:sculk"),
+		board("tools-broken", "mining", "count", "minecraft:netherite_scrap"),
+		lower("deaths", "deaths", "count", "minecraft:bone"),
+		lower("killed-by-zombie", "deaths", "count", "minecraft:zombie_head"),
+		lower("killed-by-creeper", "deaths", "count", "minecraft:creeper_head"),
+		lower("killed-by-skeleton", "deaths", "count", "minecraft:skeleton_skull"),
+		lower("killed-by-warden", "deaths", "count", "minecraft:echo_shard"),
+		board("hostile-kills", "combat", "kills", "minecraft:iron_sword"),
+		board("farm-kills", "combat", "kills", "minecraft:cooked_chicken"),
+		board("zombies", "combat", "kills", "minecraft:zombie_head"),
+		board("skeletons", "combat", "kills", "minecraft:skeleton_skull"),
+		board("creepers", "combat", "kills", "minecraft:creeper_head"),
+		board("endermen", "combat", "kills", "minecraft:ender_pearl"),
+		board("blazes", "combat", "kills", "minecraft:blaze_rod"),
+		board("wither-skeletons", "combat", "kills", "minecraft:wither_skeleton_skull"),
+		board("ender-dragon", "combat", "kills", "minecraft:dragon_egg"),
+		board("wither", "combat", "kills", "minecraft:nether_star"),
+		board("warden", "combat", "kills", "minecraft:echo_shard"),
+		board("elder-guardian", "combat", "kills", "minecraft:elder_guardian_spawn_egg"),
+		board("bosses", "combat", "kills", "minecraft:dragon_head"),
+		board("raids-won", "combat", "count", "minecraft:crossbow"),
+		board("player-kills", "combat", "kills", "minecraft:player_head"),
+		board("damage-dealt", "combat", "hearts", "minecraft:diamond_sword"),
+		board("kills-per-hour", "combat", "kills_per_hour", "minecraft:clock")
 	);
 
 	private LeaderboardCatalog() {
@@ -66,6 +96,32 @@ public final class LeaderboardCatalog {
 		return ALL;
 	}
 
+	public static List<String> listedCategories() {
+		return LISTED_CATEGORIES;
+	}
+
+	public static String categoryIcon(String category) {
+		return CATEGORY_ICONS.getOrDefault(category, "");
+	}
+
+	public static List<LeaderboardInfo> listedIn(String category) {
+		List<LeaderboardInfo> boards = new ArrayList<>();
+		for (LeaderboardInfo info : ALL) {
+			if (info.listed() && info.category().equals(category)) {
+				boards.add(info);
+			}
+		}
+		return boards;
+	}
+
+	public static Map<String, List<LeaderboardInfo>> listedByCategory() {
+		Map<String, List<LeaderboardInfo>> grouped = new LinkedHashMap<>();
+		for (String category : LISTED_CATEGORIES) {
+			grouped.put(category, listedIn(category));
+		}
+		return grouped;
+	}
+
 	public static LeaderboardInfo find(String id) {
 		for (LeaderboardInfo info : ALL) {
 			if (info.id().equals(id)) {
@@ -73,5 +129,25 @@ public final class LeaderboardCatalog {
 			}
 		}
 		return null;
+	}
+
+	public static LeaderboardInfo vanilla(String path, String group, String unit) {
+		return new LeaderboardInfo(path, group, unit, "", false, false, false);
+	}
+
+	private static LeaderboardInfo crown(String id, String unit, String icon) {
+		return new LeaderboardInfo(id, "crowns", unit, icon, false, false, false);
+	}
+
+	private static LeaderboardInfo board(String id, String category, String unit, String icon) {
+		return new LeaderboardInfo(id, category, unit, icon, true, true, false);
+	}
+
+	private static LeaderboardInfo hiddenCompare(String id, String category, String unit, String icon) {
+		return new LeaderboardInfo(id, category, unit, icon, true, false, false);
+	}
+
+	private static LeaderboardInfo lower(String id, String category, String unit, String icon) {
+		return new LeaderboardInfo(id, category, unit, icon, true, true, true);
 	}
 }

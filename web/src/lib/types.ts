@@ -1,6 +1,18 @@
 export type PlayerSummary = {
 	name: string;
 	uuid: string;
+	playHours?: number;
+	playHoursDisplay?: string;
+	championScore?: number;
+	championDisplay?: string;
+	scorePerHour?: number;
+	scorePerHourDisplay?: string;
+	advancements?: {
+		done: number;
+		total: number;
+		rank?: number;
+		ids?: string[];
+	};
 };
 
 export type PlayerStat = {
@@ -23,6 +35,12 @@ export type PlayerDetail = PlayerSummary & {
 	grades: Record<string, number>;
 	stats: Record<string, PlayerStat>;
 	vanilla?: Record<string, VanillaStat[]>;
+	advancements?: {
+		done: number;
+		total: number;
+		rank: number;
+		ids: string[];
+	};
 };
 
 export type VanillaStat = {
@@ -54,14 +72,25 @@ export type StatusResponse = {
 	};
 };
 
-export type LeaderboardInfo = {
+export type LeaderboardBoard = {
 	id: string;
-	title: string;
 	category: string;
+	unit: string;
+	icon: string;
+	listed: boolean;
+	compare: boolean;
+	lowerWins: boolean;
+};
+
+export type LeaderboardCategory = {
+	id: string;
+	icon: string;
+	boards: LeaderboardBoard[];
 };
 
 export type LeaderboardsResponse = {
-	leaderboards: LeaderboardInfo[];
+	categories: LeaderboardCategory[];
+	boards: LeaderboardBoard[];
 	vanilla?: Partial<Record<string, string[]>>;
 };
 
@@ -78,6 +107,8 @@ export type LeaderboardResponse = {
 	title: string;
 	category: string;
 	unit: string;
+	icon?: string;
+	lowerWins?: boolean;
 	entries: LeaderboardEntry[];
 };
 
@@ -92,6 +123,33 @@ export type CrownsResponse = {
 	champion: Crown;
 	dedicated: Crown;
 	efficient: Crown;
+};
+
+export type AdvancementInfo = {
+	id: string;
+	tab: string;
+	title: string;
+	description: string;
+	icon: string;
+	frame: string;
+	hidden: boolean;
+	holders: number;
+};
+
+export type AdvancementTab = {
+	id: string;
+	title: string;
+	icon: string;
+};
+
+export type AdvancementsCatalogResponse = {
+	total: number;
+	tabs: AdvancementTab[];
+	advancements: AdvancementInfo[];
+};
+
+export type AdvancementDetailResponse = AdvancementInfo & {
+	entries: LeaderboardEntry[];
 };
 
 export type ApiError = {

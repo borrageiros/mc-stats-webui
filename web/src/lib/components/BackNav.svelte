@@ -10,7 +10,15 @@
 		fromPath = from ? `${from.url.pathname}${from.url.search}` : null;
 	});
 
-	const fallbackPath = $derived(/^\/leaderboards\/[^/]+$/.test(page.url.pathname) ? '/leaderboards' : '/');
+	const fallbackPath = $derived(
+		/^\/leaderboards\/.+/.test(page.url.pathname)
+			? '/leaderboards'
+			: /^\/advancements\/.+/.test(page.url.pathname)
+				? '/advancements'
+				: /^\/players\/.+/.test(page.url.pathname)
+					? '/players'
+					: '/'
+	);
 	const href = $derived(fromPath ?? fallbackPath);
 	const label = $derived(t('nav.back'));
 

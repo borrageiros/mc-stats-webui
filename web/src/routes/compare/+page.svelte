@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { getPlayerProfile, getPlayers } from '$lib/api';
+	import { getLeaderboards, getPlayerProfile, getPlayers } from '$lib/api';
 	import Loader from '$lib/components/Loader.svelte';
 	import McItem from '$lib/components/McItem.svelte';
 	import PlayerPicker from '$lib/components/PlayerPicker.svelte';
@@ -10,9 +10,9 @@
 	import SearchField from '$lib/components/SearchField.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
-	import { compareStats, gradeItems, gradeOrder, statGroups } from '$lib/playerStats';
+	import { gradeItems, gradeOrder } from '$lib/playerStats';
 	import { cappedResults, deferredValue } from '$lib/search.svelte';
-	import type { PlayerDetail, PlayerSummary } from '$lib/types';
+	import type { LeaderboardsResponse, PlayerDetail, PlayerSummary } from '$lib/types';
 	import {
 		vanillaBoardHref,
 		vanillaGroups,
@@ -42,6 +42,7 @@
 
 	const vanillaLowerWins = new Set(['minecraft:deaths']);
 
+	let catalog = $state<LeaderboardsResponse | null>(null);
 	let players = $state<PlayerSummary[]>([]);
 	let playersReady = $state(false);
 	let left = $state('');
@@ -69,9 +70,10 @@
 
 	$effect(() => {
 		playersReady = false;
-		getPlayers()
-			.then((data) => {
+		Promise.all([getPlayers(), getLeaderboards().catch(() => null)])
+			.then(([data, boards]) => {
 				players = data.players;
+				catalog = boards;
 				failed = false;
 			})
 			.catch(() => {
@@ -256,6 +258,27 @@
 				lowerWins: false,
 				tone: 'score-per-hour',
 				hint: boardHint('efficient')
+			},
+			{
+				id: 'advancements',
+				icon: 'minecraft:experience_bottle',
+				label: t('player.advancements'),
+				href: '/advancements/most',
+				a: aPlayer.advancements?.done ?? 0,
+				b: bPlayer.advancements?.done ?? 0,
+				displayA: t('advancements.doneOf', {
+					done: aPlayer.advancements?.done ?? 0,
+					total: aPlayer.advancements?.total ?? 0
+				}),
+				displayB: t('advancements.doneOf', {
+					done: bPlayer.advancements?.done ?? 0,
+					total: bPlayer.advancements?.total ?? 0
+				}),
+				coin: false,
+				capped: false,
+				lowerWins: false,
+				tone: '',
+				hint: boardHint('advancements')
 			}
 		];
 	});
@@ -294,29 +317,33 @@
 		if (!aPlayer || !bPlayer) {
 			return [];
 		}
-		return statGroups.map((group) => ({
-			id: group.category,
-			title: tDynamic('category', group.category),
-			rows: compareStats(group).map((stat) => {
-				const a = aPlayer.stats[stat.id];
-				const b = bPlayer.stats[stat.id];
-				return {
-					id: stat.id,
-					icon: stat.icon,
-					label: tDynamic('leaderboard', stat.id),
-					href: `/leaderboards/${stat.id}`,
-					a: a?.value ?? 0,
-					b: b?.value ?? 0,
-					displayA: a?.display ?? '0',
-					displayB: b?.display ?? '0',
-					coin: false,
-					capped: false,
-					lowerWins: Boolean(stat.lowerWins),
-					tone: '',
-					hint: boardHint(stat.id)
-				};
-			})
-		}));
+		return (catalog?.categories ?? [])
+			.map((category) => ({
+				id: category.id,
+				title: tDynamic('category', category.id),
+				rows: category.boards
+					.filter((board) => board.compare)
+					.map((board) => {
+						const a = aPlayer.stats[board.id];
+						const b = bPlayer.stats[board.id];
+						return {
+							id: board.id,
+							icon: board.icon,
+							label: tDynamic('leaderboard', board.id),
+							href: `/leaderboards/${board.id}`,
+							a: a?.value ?? 0,
+							b: b?.value ?? 0,
+							displayA: a?.display ?? '0',
+							displayB: b?.display ?? '0',
+							coin: false,
+							capped: false,
+							lowerWins: board.lowerWins,
+							tone: '',
+							hint: boardHint(board.id)
+						};
+					})
+			}))
+			.filter((section) => section.rows.length > 0);
 	});
 
 	const vanillaSections = $derived.by(() => {

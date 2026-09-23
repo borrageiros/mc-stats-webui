@@ -9,6 +9,7 @@
 		bodyPoses,
 		createBodyViewer,
 		createPodiumViewer,
+		defaultBodyZoom,
 		renderHeadSkin,
 		updateBodySkin,
 		type BodyHandle,
@@ -39,6 +40,7 @@
 	let pose = $state<BodyPose>('run');
 	let paused = $state(false);
 	let autoRotate = $state(false);
+	let scrollZoom = $state(false);
 	let equipment = $state<BackEquipment>('cape');
 
 	const poseKeys: Record<BodyPose, MessageKey> = {
@@ -119,6 +121,7 @@
 		pose = view === 'podium' ? 'idle' : 'run';
 		paused = view === 'podium';
 		autoRotate = false;
+		scrollZoom = false;
 		equipment = 'none';
 		let cancelled = false;
 		let handle: BodyHandle | null = null;
@@ -209,6 +212,17 @@
 		viewer?.setAutoRotate(autoRotate);
 	}
 
+	function toggleScrollZoom() {
+		scrollZoom = !scrollZoom;
+		if (!viewer) {
+			return;
+		}
+		viewer.setEnableZoom(scrollZoom);
+		if (!scrollZoom) {
+			viewer.setZoom(defaultBodyZoom);
+		}
+	}
+
 	function cycleEquipment() {
 		const next = equipmentOrder[(equipmentOrder.indexOf(equipment) + 1) % equipmentOrder.length];
 		equipment = next;
@@ -265,6 +279,17 @@
 					onclick={toggleAutoRotate}
 				>
 					<Icon name="rotate" />
+				</button>
+				<button
+					type="button"
+					class:on={scrollZoom}
+					aria-pressed={scrollZoom}
+					title={t('skin.scrollZoom')}
+					aria-label={t('skin.scrollZoom')}
+					onpointerdown={stopOrbit}
+					onclick={toggleScrollZoom}
+				>
+					<Icon name="zoom" />
 				</button>
 				<button
 					type="button"

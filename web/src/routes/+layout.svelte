@@ -28,7 +28,9 @@
 
 	const links = $derived([
 		{ href: '/', label: t('nav.home') },
+		{ href: '/players', label: t('nav.players') },
 		{ href: '/leaderboards', label: t('nav.leaderboards') },
+		{ href: '/advancements', label: t('nav.advancements') },
 		{ href: '/compare', label: t('nav.compare') },
 		{ href: '/about', label: t('nav.about') }
 	]);

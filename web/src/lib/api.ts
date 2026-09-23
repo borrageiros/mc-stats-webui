@@ -1,6 +1,10 @@
 import type {
+	AdvancementDetailResponse,
+	AdvancementsCatalogResponse,
 	CrownsResponse,
 	HealthResponse,
+	LeaderboardBoard,
+	LeaderboardEntry,
 	LeaderboardResponse,
 	LeaderboardsResponse,
 	PlayerDetail,
@@ -32,6 +36,61 @@ export function getPlayers() {
 	return getJson<PlayersResponse>('/api/players');
 }
 
+export async function getRoster(): Promise<PlayerSummary[]> {
+	const data = await getPlayers();
+	if (data.players.some((player) => typeof player.playHours === 'number')) {
+		return sortRoster(data.players);
+	}
+	const [hours, score, rate, most, catalog] = await Promise.all([
+		getLeaderboard('dedicated').catch(() => null),
+		getLeaderboard('champion').catch(() => null),
+		getLeaderboard('efficient').catch(() => null),
+		getAdvancementMost().catch(() => null),
+		getAdvancements().catch(() => null)
+	]);
+	const hoursBy = indexEntries(hours);
+	const scoreBy = indexEntries(score);
+	const rateBy = indexEntries(rate);
+	const mostBy = indexEntries(most);
+	return sortRoster(
+		data.players.map((player) => {
+			const time = hoursBy.get(player.uuid);
+			const crown = scoreBy.get(player.uuid);
+			const efficiency = rateBy.get(player.uuid);
+			const done = mostBy.get(player.uuid);
+			return {
+				...player,
+				playHours: time?.value ?? 0,
+				playHoursDisplay: time?.display ?? '0 h',
+				championScore: crown?.value ?? 0,
+				championDisplay: crown?.display ?? '0',
+				scorePerHour: efficiency?.value ?? 0,
+				scorePerHourDisplay: efficiency?.display ?? '0/h',
+				advancements: {
+					done: done?.value ?? 0,
+					total: catalog?.total ?? 0
+				}
+			};
+		})
+	);
+}
+
+function indexEntries(board: LeaderboardResponse | null) {
+	const map = new Map<string, LeaderboardEntry>();
+	for (const entry of board?.entries ?? []) {
+		map.set(entry.uuid, entry);
+	}
+	return map;
+}
+
+function sortRoster(players: PlayerSummary[]) {
+	return [...players].sort(
+		(left, right) =>
+			(right.playHours ?? 0) - (left.playHours ?? 0) ||
+			left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })
+	);
+}
+
 export function getPlayer(name: string) {
 	return getJson<PlayerSummary & Partial<PlayerDetail>>(`/api/players/${encodeURIComponent(name)}`);
 }
@@ -43,12 +102,12 @@ export async function getPlayerProfile(name: string): Promise<PlayerDetail> {
 	}
 	const catalog = await getLeaderboards();
 	const boards = await Promise.all(
-		catalog.leaderboards.map((board) => getLeaderboard(board.id).catch(() => null))
+		catalog.boards.map((board) => getLeaderboard(board.id).catch(() => null))
 	);
 	const stats: Record<string, PlayerStat> = {};
 	let championScore = 0;
 	let championDisplay = '0';
-	let championRank = catalog.leaderboards.length;
+	let championRank = catalog.boards.length;
 	let playHours = 0;
 	let playHoursDisplay = '0 h';
 	let scorePerHour = 0;
@@ -99,12 +158,42 @@ export async function getPlayerProfile(name: string): Promise<PlayerDetail> {
 		trackedPlayers,
 		grades: {},
 		stats,
-		vanilla: undefined
+		vanilla: undefined,
+		advancements: player.advancements
 	};
 }
 
-export function getLeaderboards() {
-	return getJson<LeaderboardsResponse>('/api/leaderboards');
+export async function getLeaderboards() {
+	const data = await getJson<LeaderboardsResponse & { leaderboards?: Array<{ id: string; category: string }> }>(
+		'/api/leaderboards'
+	);
+	if (data.categories && data.boards) {
+		return data;
+	}
+	const legacy = data.leaderboards ?? [];
+	const boards: LeaderboardBoard[] = legacy.map((board) => ({
+		id: board.id,
+		category: board.category,
+		unit: '',
+		icon: '',
+		listed: board.category !== 'crowns',
+		compare: board.id !== 'advancements' && board.id !== 'play-time',
+		lowerWins: board.category === 'deaths'
+	}));
+	const seen = new Set<string>();
+	const categories = [];
+	for (const board of boards) {
+		if (!board.listed || seen.has(board.category)) {
+			continue;
+		}
+		seen.add(board.category);
+		categories.push({
+			id: board.category,
+			icon: '',
+			boards: boards.filter((item) => item.listed && item.category === board.category)
+		});
+	}
+	return { categories, boards, vanilla: data.vanilla };
 }
 
 export function getLeaderboard(id: string) {
@@ -142,6 +231,7 @@ async function leaderboardFromProfiles(group: string, statId: string): Promise<L
 		title: statId,
 		category: group,
 		unit: ranked[0]?.unit ?? 'count',
+		icon: '',
 		entries: ranked.map((entry, index) => ({
 			rank: index + 1,
 			name: entry.name,
@@ -154,4 +244,21 @@ async function leaderboardFromProfiles(group: string, statId: string): Promise<L
 
 export function getCrowns() {
 	return getJson<CrownsResponse>('/api/crowns');
+}
+
+export function getAdvancements() {
+	return getJson<AdvancementsCatalogResponse>('/api/advancements');
+}
+
+export function getAdvancementMost() {
+	return getJson<LeaderboardResponse>('/api/advancements/most');
+}
+
+export function getAdvancement(id: string) {
+	const path = id
+		.replace(':', '/')
+		.split('/')
+		.map((part) => encodeURIComponent(part))
+		.join('/');
+	return getJson<AdvancementDetailResponse>(`/api/advancements/${path}`);
 }
