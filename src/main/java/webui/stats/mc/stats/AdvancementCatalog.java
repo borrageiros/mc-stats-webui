@@ -69,8 +69,8 @@ public final class AdvancementCatalog {
 						tab,
 						new AdvancementTab(
 							tab,
-							root != null ? plain(root.getTitle()) : tab,
-							root != null ? itemId(root.getIcon()) : itemId(info.getIcon())
+							root != null ? plain(root.title()) : tab,
+							root != null ? itemId(root.icon()) : itemId(info.icon())
 						)
 					);
 				}
@@ -78,11 +78,11 @@ public final class AdvancementCatalog {
 					new AdvancementInfo(
 						id,
 						tab,
-						plain(info.getTitle()),
-						plain(info.getDescription()),
-						itemId(info.getIcon()),
-						frame(info.getType()),
-						info.isHidden()
+						plain(info.title()),
+						plain(info.description()),
+						itemId(info.icon()),
+						frame(info.type()),
+						info.hidden()
 					)
 				);
 			}
