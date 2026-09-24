@@ -1,12 +1,8 @@
 <script lang="ts">
-	import {
-		advancementHref,
-		advancementTabTitle,
-		advancementTitle,
-		matchesAdvancementQuery
-	} from '$lib/advancements';
+	import { advancementTabTitle, matchesAdvancementQuery } from '$lib/advancements';
 	import { boardHint, i18n, pageTitle, t } from '$lib/i18n/i18n.svelte';
 	import { getAdvancementMost, getAdvancements } from '$lib/api';
+	import AdvancementTiles from '$lib/components/AdvancementTiles.svelte';
 	import HomePodium from '$lib/components/HomePodium.svelte';
 	import Loader from '$lib/components/Loader.svelte';
 	import McItem from '$lib/components/McItem.svelte';
@@ -119,17 +115,7 @@
 					</button>
 				</div>
 				{#if isOpen(section.tab.id)}
-					<div class="tiles">
-						{#each section.ids as item (item.id)}
-							<a class="tile slot" class:hidden={item.hidden} href={advancementHref(item.id)}>
-								<span class="glyph">
-									<McItem id={item.icon} />
-								</span>
-								<span class="label">{advancementTitle(item.id, item.title)}</span>
-								<span class="holders">{t('advancements.holders', { count: item.holders })}</span>
-							</a>
-						{/each}
-					</div>
+					<AdvancementTiles items={section.ids} dim={(item) => Boolean(item.hidden)} showHolders />
 				{/if}
 			</section>
 		{/each}
@@ -226,44 +212,5 @@
 		margin-left: 0.45rem;
 		font-size: 0.78rem;
 		color: var(--color-muted);
-	}
-
-	.tiles {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr));
-		gap: 0.45rem;
-	}
-
-	.tile {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.28rem;
-		padding: 0.7rem 0.45rem 0.55rem;
-		text-align: center;
-		min-height: 8.2rem;
-	}
-
-	.tile.hidden {
-		opacity: 0.55;
-	}
-
-	.glyph {
-		display: grid;
-		place-items: center;
-		width: 2.6rem;
-		height: 2.6rem;
-		margin-bottom: 0.15rem;
-	}
-
-	.label,
-	.holders {
-		color: var(--color-muted);
-		font-size: 0.72rem;
-		line-height: 1.25;
-	}
-
-	.holders {
-		color: var(--color-accent);
 	}
 </style>

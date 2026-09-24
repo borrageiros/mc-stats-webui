@@ -10,11 +10,24 @@ import { getPlayerTextures } from './mojang';
 
 let pluginsReady = false;
 
+function transparentWebGLPlugin() {
+	return {
+		...WebGLRendererPlugin,
+		getComposedShaders() {
+			const shaders = WebGLRendererPlugin.getComposedShaders?.() ?? WebGLRendererPlugin.shaders;
+			return {
+				vertex: shaders.vertex,
+				fragment: shaders.fragment.replace('texColor.a = 1.0;', 'texColor.a = nearestAlpha;')
+			};
+		}
+	};
+}
+
 function ensurePlugins() {
 	if (pluginsReady) {
 		return;
 	}
-	use(WebGLRendererPlugin);
+	use(transparentWebGLPlugin());
 	pluginsReady = true;
 }
 

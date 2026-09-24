@@ -191,6 +191,9 @@ export const fr: Record<MessageKey, string> = {
 	'compare.same': 'Choisis deux joueurs différents.',
 	'compare.statsError': 'Impossible de charger les stats. Réessaie dans un instant.',
 	'compare.stats': 'Stats',
+	'compare.advancementsDiff': 'Progrès distincts',
+	'compare.onlyAdvancements': 'Seulement {name}',
+	'compare.onlyAdvancementsEmpty': 'Aucun progrès exclusif',
 	'about.heading': 'Comment on désigne le meilleur',
 	'about.lead':
 		'Minecraft n’a pas de skill. Il compte seulement ce que tu fais. On n’utilise donc pas une seule stat : le temps récompense l’AFK, et les kills bruts récompensent un spawner de silverfish.',

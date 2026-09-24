@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import AdvancementTiles from '$lib/components/AdvancementTiles.svelte';
 	import BackNav from '$lib/components/BackNav.svelte';
 	import Loader from '$lib/components/Loader.svelte';
 	import McItem from '$lib/components/McItem.svelte';
@@ -8,12 +9,7 @@
 	import SearchField from '$lib/components/SearchField.svelte';
 	import Tabs from '$lib/components/Tabs.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
-	import {
-		advancementHref,
-		advancementTabTitle,
-		advancementTitle,
-		matchesAdvancementQuery
-	} from '$lib/advancements';
+	import { advancementTabTitle, matchesAdvancementQuery } from '$lib/advancements';
 	import { getAdvancements, getLeaderboards, getPlayerProfile } from '$lib/api';
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import { gradeItems, gradeOrder } from '$lib/playerStats';
@@ -150,14 +146,14 @@
 		return advancementTabs
 			.map((tab) => {
 				const items = catalog.filter((item) => item.tab === tab.id);
+				const done = items.filter((item) => doneIds.has(item.id)).length;
 				const matched = items.filter((item) => {
-					const done = doneIds.has(item.id);
-					if (hideLocked && !done) {
+					if (hideLocked && !doneIds.has(item.id)) {
 						return false;
 					}
 					return matchesAdvancementQuery(item.id, item.title, item.description, needle);
 				});
-				return { tab, items, matched, ids: cappedResults(matched, searching) };
+				return { tab, items, done, matched, ids: cappedResults(matched, searching) };
 			})
 			.filter((section) => section.matched.length > 0);
 	});
@@ -261,8 +257,8 @@
 								<McItem id={section.tab.icon} compact />
 								{advancementTabTitle(section.tab.id, section.tab.title)}
 								<span class="count"
-									>{t('player.shown', {
-										shown: section.ids.length,
+									>{t('advancements.doneOf', {
+										done: section.done,
 										total: section.items.length
 									})}</span
 								>
@@ -270,17 +266,7 @@
 						</button>
 					</div>
 					{#if isAdvancementOpen(section.tab.id)}
-						<div class="tiles">
-							{#each section.ids as item (item.id)}
-								{@const done = doneIds.has(item.id)}
-								<a class="tile slot" class:zero={!done} href={advancementHref(item.id)}>
-									<span class="glyph">
-										<McItem id={item.icon} />
-									</span>
-									<span class="label">{advancementTitle(item.id, item.title)}</span>
-								</a>
-							{/each}
-						</div>
+						<AdvancementTiles items={section.ids} dim={(item) => !doneIds.has(item.id)} />
 					{/if}
 				</section>
 			{/each}
@@ -604,6 +590,8 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 0.28rem;
+		width: 100%;
+		height: 100%;
 		padding: 0.7rem 0.45rem 0.55rem;
 		text-align: center;
 		min-height: 8.2rem;

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { getLeaderboards, getPlayerProfile, getPlayers } from '$lib/api';
+	import { advancementTitle, matchesAdvancementQuery } from '$lib/advancements';
+	import { getAdvancements, getLeaderboards, getPlayerProfile, getPlayers } from '$lib/api';
+	import AdvancementTiles from '$lib/components/AdvancementTiles.svelte';
 	import Loader from '$lib/components/Loader.svelte';
 	import McItem from '$lib/components/McItem.svelte';
 	import PlayerPicker from '$lib/components/PlayerPicker.svelte';
@@ -12,7 +14,7 @@
 	import { boardHint, i18n, pageTitle, t, tDynamic } from '$lib/i18n/i18n.svelte';
 	import { gradeItems, gradeOrder } from '$lib/playerStats';
 	import { cappedResults, deferredValue } from '$lib/search.svelte';
-	import type { LeaderboardsResponse, PlayerDetail, PlayerSummary } from '$lib/types';
+	import type { AdvancementInfo, LeaderboardsResponse, PlayerDetail, PlayerSummary } from '$lib/types';
 	import {
 		vanillaBoardHref,
 		vanillaGroups,
@@ -43,6 +45,7 @@
 	const vanillaLowerWins = new Set(['minecraft:deaths']);
 
 	let catalog = $state<LeaderboardsResponse | null>(null);
+	let advancementCatalog = $state<AdvancementInfo[]>([]);
 	let players = $state<PlayerSummary[]>([]);
 	let playersReady = $state(false);
 	let left = $state('');
@@ -56,6 +59,7 @@
 	let rightLoading = $state(false);
 	let query = $state('');
 	const filterQuery = deferredValue(() => query);
+	let exclusiveOpen = $state(true);
 	let openVanilla = $state<Record<VanillaGroup, boolean>>({
 		custom: false,
 		killed: false,
@@ -70,10 +74,11 @@
 
 	$effect(() => {
 		playersReady = false;
-		Promise.all([getPlayers(), getLeaderboards().catch(() => null)])
-			.then(([data, boards]) => {
+		Promise.all([getPlayers(), getLeaderboards().catch(() => null), getAdvancements().catch(() => null)])
+			.then(([data, boards, advancements]) => {
 				players = data.players;
 				catalog = boards;
+				advancementCatalog = advancements?.advancements ?? [];
 				failed = false;
 			})
 			.catch(() => {
@@ -190,6 +195,42 @@
 		return rows.filter((row) => matchesNeedle(row.label, needle) || matchesNeedle(row.id, needle));
 	}
 
+	function exclusiveAdvancements(have: string[], other: string[]) {
+		const taken = new Set(other);
+		const byId = new Map(advancementCatalog.map((item) => [item.id, item]));
+		return have
+			.filter((id) => !taken.has(id))
+			.map(
+				(id) =>
+					byId.get(id) ?? {
+						id,
+						tab: '',
+						title: id,
+						description: '',
+						icon: 'minecraft:experience_bottle',
+						frame: 'task',
+						hidden: false,
+						holders: 0
+					}
+			)
+			.sort((leftItem, rightItem) =>
+				advancementTitle(leftItem.id, leftItem.title).localeCompare(
+					advancementTitle(rightItem.id, rightItem.title),
+					i18n.locale
+				)
+			);
+	}
+
+	function filterExclusive(items: AdvancementInfo[], needle: string, sectionHit: boolean) {
+		const matched =
+			!needle || sectionHit
+				? items
+				: items.filter((item) =>
+						matchesAdvancementQuery(item.id, item.title, item.description, needle)
+					);
+		return { matched: matched.length, items: cappedResults(matched, searching) };
+	}
+
 	function isOpen(group: VanillaGroup) {
 		return searching || openVanilla[group];
 	}
@@ -199,6 +240,17 @@
 			return;
 		}
 		openVanilla = { ...openVanilla, [group]: !openVanilla[group] };
+	}
+
+	function exclusiveExpanded() {
+		return searching || exclusiveOpen;
+	}
+
+	function toggleExclusive() {
+		if (searching) {
+			return;
+		}
+		exclusiveOpen = !exclusiveOpen;
 	}
 
 	const leftChoices = $derived(players.filter((player) => player.name !== right));
@@ -431,11 +483,39 @@
 			})
 			.filter((section) => section.matched > 0);
 	});
+	const exclusiveSides = $derived.by(() => {
+		void i18n.locale;
+		const aPlayer = leftProfile;
+		const bPlayer = rightProfile;
+		if (!aPlayer || !bPlayer) {
+			return { onlyA: [] as AdvancementInfo[], onlyB: [] as AdvancementInfo[] };
+		}
+		return {
+			onlyA: exclusiveAdvancements(aPlayer.advancements?.ids ?? [], bPlayer.advancements?.ids ?? []),
+			onlyB: exclusiveAdvancements(bPlayer.advancements?.ids ?? [], aPlayer.advancements?.ids ?? [])
+		};
+	});
+	const shownExclusive = $derived.by(() => {
+		void i18n.locale;
+		const needle = filterQuery.current;
+		const lowered = needle.trim().toLowerCase();
+		const sectionHit =
+			Boolean(lowered) &&
+			(matchesNeedle(t('compare.advancementsDiff'), lowered) ||
+				matchesNeedle(t('compare.onlyAdvancements', { name: leftProfile?.name ?? '' }), lowered) ||
+				matchesNeedle(t('compare.onlyAdvancements', { name: rightProfile?.name ?? '' }), lowered));
+		return {
+			onlyA: filterExclusive(exclusiveSides.onlyA, needle, sectionHit),
+			onlyB: filterExclusive(exclusiveSides.onlyB, needle, sectionHit)
+		};
+	});
+	const showExclusive = $derived(shownExclusive.onlyA.matched + shownExclusive.onlyB.matched > 0);
 	const hasMatches = $derived(
 		shownOverview.length > 0 ||
 			shownGrades.length > 0 ||
 			shownStatSections.length > 0 ||
-			shownVanilla.length > 0
+			shownVanilla.length > 0 ||
+			showExclusive
 	);
 
 	const tally = $derived.by(() => {
@@ -620,6 +700,50 @@
 					{@render duel(row)}
 				{/each}
 			{/if}
+			{#if showExclusive}
+				<div class="pack">
+					<button
+						class="fold heading"
+						type="button"
+						aria-expanded={exclusiveExpanded()}
+						onclick={toggleExclusive}
+					>
+						<span class="chevron" class:open={exclusiveExpanded()}>▸</span>
+						<span>
+							{t('compare.advancementsDiff')}
+							<span class="count"
+								>{shownExclusive.onlyA.matched + shownExclusive.onlyB.matched}</span
+							>
+						</span>
+					</button>
+					{#if exclusiveExpanded()}
+						<div class="exclusive">
+							<div class="exclusive-col">
+								<p class="section sub">
+									{t('compare.onlyAdvancements', { name: leftProfile?.name ?? '' })}
+									<span class="count">{shownExclusive.onlyA.matched}</span>
+								</p>
+								{#if shownExclusive.onlyA.items.length === 0}
+									<p class="muted empty">{t('compare.onlyAdvancementsEmpty')}</p>
+								{:else}
+									<AdvancementTiles items={shownExclusive.onlyA.items} />
+								{/if}
+							</div>
+							<div class="exclusive-col">
+								<p class="section sub">
+									{t('compare.onlyAdvancements', { name: rightProfile?.name ?? '' })}
+									<span class="count">{shownExclusive.onlyB.matched}</span>
+								</p>
+								{#if shownExclusive.onlyB.items.length === 0}
+									<p class="muted empty">{t('compare.onlyAdvancementsEmpty')}</p>
+								{:else}
+									<AdvancementTiles items={shownExclusive.onlyB.items} />
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 			{#if shownStatSections.length > 0}
 				<p class="section">{t('compare.stats')}</p>
 				{#each shownStatSections as section}
@@ -775,6 +899,10 @@
 		box-shadow: none;
 	}
 
+	.fold.heading {
+		color: var(--color-gold);
+	}
+
 	.chevron {
 		display: inline-block;
 		width: 1rem;
@@ -790,6 +918,21 @@
 	.count {
 		margin-left: 0.45rem;
 		color: var(--color-muted);
+	}
+
+	.exclusive {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.7rem;
+	}
+
+	.exclusive-col {
+		min-width: 0;
+	}
+
+	.exclusive .empty {
+		margin: 0.2rem 0 0;
+		text-align: left;
 	}
 
 	.stat {
@@ -911,7 +1054,8 @@
 	@media (max-width: 700px) {
 		.row,
 		.cols,
-		.values {
+		.values,
+		.exclusive {
 			grid-template-columns: 1fr;
 		}
 

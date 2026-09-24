@@ -191,6 +191,9 @@ export const en: Record<MessageKey, string> = {
 	'compare.same': 'Pick two different players.',
 	'compare.statsError': 'Stats could not be loaded. Try again in a moment.',
 	'compare.stats': 'Stats',
+	'compare.advancementsDiff': 'Unique advancements',
+	'compare.onlyAdvancements': 'Only {name}',
+	'compare.onlyAdvancementsEmpty': 'No unique advancements',
 	'about.heading': 'How we pick the best',
 	'about.lead':
 		'Minecraft has no skill rating. It only counts what you do. So we do not use a single stat: play time rewards AFK, and raw kills reward a silverfish spawner.',
